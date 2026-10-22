@@ -1,0 +1,13 @@
+# Use with: docker compose -f compose.yaml -f compose.production.yaml up -d
+services:
+  web:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DEBUG: "False"
+      TRUST_PROXY_SSL_HEADER: "True"
+    command: ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, urllib.request, urllib.parse; host=urllib.parse.urlsplit(os.environ['ADMIN_BASE_URL']).netloc; urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8000/healthz/', headers={'Host':host}), timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

@@ -1,0 +1,82 @@
+{
+  "foundation": "http://localhost:8011",
+  "programmes": [
+    {
+      "code": "dricd",
+      "name": "Desktop Research, Information Curation & Documentation",
+      "url": "http://dricd.localhost:8011",
+      "initiatives": 2
+    },
+    {
+      "code": "eraid",
+      "name": "Educational Resources Aid (ERAid)",
+      "url": "http://eraid.localhost:8011",
+      "initiatives": 2
+    },
+    {
+      "code": "evm",
+      "name": "Educational Voices Media (EVM)",
+      "url": "http://evm.localhost:8011",
+      "initiatives": 2
+    },
+    {
+      "code": "gccs",
+      "name": "Global Community Central School",
+      "url": "http://gccs.localhost:8011",
+      "initiatives": 9
+    },
+    {
+      "code": "gsevs",
+      "name": "Ghanaian Senior Experts Volunteer Service",
+      "url": "http://gsevs.localhost:8011",
+      "initiatives": 9
+    },
+    {
+      "code": "pec",
+      "name": "Pathfinder Education Clinic",
+      "url": "http://pec.localhost:8011",
+      "initiatives": 3
+    },
+    {
+      "code": "rengtech",
+      "name": "Refurbishment Engineering and Technology (RENGTECH) Initiative",
+      "url": "http://rengtech.localhost:8011",
+      "initiatives": 3
+    },
+    {
+      "code": "spin",
+      "name": "SkillsPool Innovation Network",
+      "url": "http://spin.localhost:8011",
+      "initiatives": 2
+    },
+    {
+      "code": "tkrd",
+      "name": "Tacit Knowledge Research & Documentation",
+      "url": "http://tkrd.localhost:8011",
+      "initiatives": 3
+    },
+    {
+      "code": "tradestart",
+      "name": "TRADESTART \u2014 Apprenticeship Graduate Support Programme",
+      "url": "http://tradestart.localhost:8011",
+      "initiatives": 4
+    },
+    {
+      "code": "wwi",
+      "name": "Work World International",
+      "url": "http://wwi.localhost:8011",
+      "initiatives": 4
+    }
+  ],
+  "library_assets": [
+    "gecp-logo",
+    "gsevs-logo",
+    "learning-together-illustration",
+    "wwi-logo",
+    "gecp-logo-alternative",
+    "gsevs-brochure",
+    "rengtech-brochure-previous-name"
+  ],
+  "validated_asset_files": 7,
+  "assets_skipped": false
+}

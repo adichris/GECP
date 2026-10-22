@@ -1,0 +1,30 @@
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const fs = require('node:fs');
+const source = fs.readFileSync('static/js/site.js','utf8');
+function browser(saved, dark, storageBlocked=false, lightTheme='light') {
+  const events={}, windowEvents={}, selectorEvents={};
+  const root={dataset:{siteId:'7',lightTheme},style:{}};
+  const selector={value:'',addEventListener:(name,fn)=>selectorEvents[name]=fn};
+  const media={matches:dark,addEventListener:(name,fn)=>media.change=fn};
+  const store={value:saved,getItem(){if(storageBlocked)throw Error();return this.value;},setItem(key,value){if(storageBlocked)throw Error();this.value=value;}};
+  const document={documentElement:root,addEventListener:(name,fn)=>events[name]=fn,getElementById:id=>id==='theme-selector'?selector:null,querySelectorAll:()=>[],body:{addEventListener(){}}};
+  const window={matchMedia:query=>query.includes('color-scheme')?media:{matches:true},addEventListener:(name,fn)=>windowEvents[name]=fn};
+  vm.runInNewContext(source,{document,window,localStorage:store});
+  events.DOMContentLoaded();
+  return {root,selector,media,store,selectorEvents,windowEvents};
+}
+let b=browser(null,true);assert.equal(b.root.dataset.theme,'dark');assert.equal(b.selector.value,'system');
+b.media.matches=false;b.media.change();assert.equal(b.root.dataset.theme,'light');
+b.selector.value='dark';b.selectorEvents.change();assert.equal(b.store.value,'dark');
+b.media.matches=false;b.media.change();assert.equal(b.root.dataset.theme,'dark');
+b.selector.value='system';b.selectorEvents.change();assert.equal(b.root.dataset.theme,'light');
+b.windowEvents.storage({key:'gecp-theme-7',newValue:'light'});assert.equal(b.selector.value,'light');
+b.windowEvents.storage({key:'gecp-theme-8',newValue:'dark'});assert.equal(b.root.dataset.theme,'light');
+assert.equal(browser('light',true).root.dataset.theme,'light');
+assert.equal(browser(null,true,true).root.dataset.theme,'dark');
+assert.equal(browser('forest',false).root.dataset.theme,'dark');
+assert.equal(browser('light',true,false,'corporate').root.dataset.theme,'corporate');
+assert.equal(browser('light',true,false,'corporate').root.style.colorScheme,'light');
+assert.equal(browser('light',true,false,'forest').root.dataset.theme,'light');
+console.log('Theme tests passed: system changes, explicit override, persistence, site isolation, storage fallback and legacy preference.');

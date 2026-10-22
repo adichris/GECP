@@ -1,0 +1,6 @@
+<details class="mega-menu" data-mega>
+<summary>Our programmes <span aria-hidden="true">⌄</span></summary>
+<div class="mega-panel"><div class="mega-intro"><span class="eyebrow">One foundation. Many pathways.</span><h2>Find where you belong.</h2><p>Learning, skills, expertise and opportunity — connected across the GECP community.</p><a href="/programmes/" class="text-link">Explore the full directory ↗</a><a href="/search/?scope=all" class="text-link">Search across GECP →</a></div><div class="mega-groups">
+{% for group in programme_groups %}<section><h3>{{ group.title }}</h3>{% for programme in group.programmes %}<a href="{{ programme.site.root_url }}"><strong>{{ programme.code|upper }}</strong><span>{{ programme.name }}</span></a>{% endfor %}</section>{% endfor %}
+</div><div class="mega-bottom"><span>Not sure where to start?</span><a href="/contact/">Talk to our team →</a><a href="/explore/?kind=opportunities">Browse opportunities →</a></div></div>
+</details>

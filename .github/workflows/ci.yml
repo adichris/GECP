@@ -1,0 +1,26 @@
+name: Platform checks
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_DB: gecp, POSTGRES_USER: gecp, POSTGRES_PASSWORD: test-only }
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: 'npm' }
+      - run: pip install -r requirements-dev.txt
+      - run: npm ci && npm run build && npm run test:theme
+      - run: ruff check .
+      - run: python manage.py makemigrations --check --dry-run
+      - run: pytest
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.ci
+          DATABASE_URL: postgres://gecp:test-only@localhost:5432/gecp
+      - run: docker build -t gecp:test .

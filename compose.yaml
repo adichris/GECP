@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gecp}
+      POSTGRES_USER: ${POSTGRES_USER:-gecp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env and set a database password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+  web:
+    build: .
+    env_file: .env
+    command: python manage.py runserver 0.0.0.0:8000
+    ports: ["127.0.0.1:8000:8000"]
+    volumes: ["media_data:/app/media"]
+    depends_on:
+      db: { condition: service_healthy }
+    restart: unless-stopped
+volumes:
+  postgres_data:
+  media_data:

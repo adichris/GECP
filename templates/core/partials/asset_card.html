@@ -1,0 +1,1 @@
+{% load wagtailimages_tags %}<a href="{% url 'asset_detail' asset.slug %}" class="media-card"><div class="media-image">{% image asset.image max-700x500 loading="lazy" alt=asset.alt_text %}</div><div class="media-caption"><span class="eyebrow">{{ asset.get_kind_display }}{% if asset.is_archive %} · Archive{% endif %}</span><h3>{{ asset.title }} <span>↗</span></h3></div></a>

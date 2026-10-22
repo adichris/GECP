@@ -1,0 +1,56 @@
+[
+  {
+    "name": "5EAA2775-4EFB-4A06-BC42-13411CC135BB.jpeg",
+    "file": "gecp-logo.jpeg",
+    "programme": "foundation",
+    "role": "logo",
+    "source_chat": "6ab62770-92e8-83ea-b2c5-f891ee29ca01",
+    "source_title": "GECP Foundation Logo Rationale",
+    "sha256": "4e2e6cc95468784a459c4fd0499567494718181b1e68849628f7e66ed02f1eba"
+  },
+  {
+    "name": "67AC8F85-9D2A-48DE-997D-71D218601735.jpeg",
+    "file": "gsevs-logo.jpeg",
+    "programme": "gsevs",
+    "role": "logo",
+    "source_chat": "6ab4022e-1938-83ea-bac8-63b346a8622f",
+    "source_title": "GSEVS Logo",
+    "sha256": "c4d346866a94cde842f74942b717c10db7fa2b19e8c26ead5517d30e0a51668f"
+  },
+  {
+    "name": "8AEF32DA-A168-4EC1-A2E3-AAA5322264A2.jpeg",
+    "file": "gsevs-brochure.jpeg",
+    "programme": "gsevs",
+    "role": "reference",
+    "source_chat": "6ab4022e-1938-83ea-bac8-63b346a8622f",
+    "source_title": "GSEVS Logo",
+    "sha256": "447daecd7d8f1020ad5263c63b7aabfe1325caff5b2432a4dc86a14dee90d259"
+  },
+  {
+    "name": "64D539DE-BDAB-4A4F-AC81-D556B2D15050.jpeg",
+    "file": "wwi-logo.jpeg",
+    "programme": "wwi",
+    "role": "logo",
+    "source_chat": "6aa34d69-a194-83ea-8f44-e7eaa7d1031d",
+    "source_title": "CASMET Student Sales Team",
+    "sha256": "c24fe2bcce9011e66bfcc4ad9807b15f1c9fc869e06018937dfadda795bd4c29"
+  },
+  {
+    "name": "4E95AB5F-10C6-49FD-A25B-FDD8B22CA861.jpeg",
+    "file": "gecp-logo-alternative.jpeg",
+    "programme": "foundation",
+    "role": "reference",
+    "source_chat": "6aa34d69-a194-83ea-8f44-e7eaa7d1031d",
+    "source_title": "CASMET Student Sales Team",
+    "sha256": "4e1e411f8c99be3e2f98f89a66aa188b0d1c475a4826db04b85cc892b80b4b4c"
+  },
+  {
+    "name": "16FCC3F2-3583-42D3-A8CA-26FB98D658BB.jpeg",
+    "file": "rengtech-brochure-previous-name.jpeg",
+    "programme": "rengtech",
+    "role": "reference",
+    "source_chat": "6ab7d5e8-7018-83e9-84c6-0f78d8cf16db",
+    "source_title": "RENGTECH -STC Partnership Proposal",
+    "sha256": "9e0715783395aefc7b9c331f339b271275d1ee114641d3523173d1c158b35e90"
+  }
+]

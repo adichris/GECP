@@ -1,0 +1,6 @@
+{% load wagtailcore_tags %}
+{% for link in branding.navigation_links.all %}<a class="hover:underline" href="{% if link.page %}{% pageurl link.page %}{% else %}{{ link.external_url }}{% endif %}">{{ link.label }}</a>{% endfor %}
+<a class="hover:underline" href="/explore/?kind=opportunities">Opportunities</a>
+<a class="hover:underline" href="/explore/?kind=news">Stories</a>
+<a class="hover:underline" href="/explore/?kind=events">Events</a>
+<a class="btn btn-sm brand-button" href="/contact/">Get involved ↗</a>

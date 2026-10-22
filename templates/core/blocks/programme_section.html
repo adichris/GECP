@@ -1,0 +1,3 @@
+<section class="section programme-depth"><div class="section-heading"><div><span class="eyebrow">{{ value.eyebrow }}</span><h2>{{ value.heading }}</h2></div><p>{{ value.introduction }}</p></div>
+{% if value.layout == 'faq' %}<div class="programme-faq">{% for item in value.items %}<details><summary>{{ item.title }} <span aria-hidden="true">＋</span></summary><p>{{ item.text|linebreaksbr }}</p></details>{% endfor %}</div>
+{% else %}<div class="depth-grid {% if value.layout == 'steps' %}journey-grid{% endif %}">{% for item in value.items %}<article class="depth-card"><span class="step-marker">{{ forloop.counter|stringformat:'02d' }}</span><h3>{{ item.title }}</h3><p>{{ item.text|linebreaksbr }}</p></article>{% endfor %}</div>{% endif %}</section>

@@ -1,0 +1,33 @@
+{% load static wagtailcore_tags wagtailimages_tags %}
+<!doctype html>
+<html lang="en" data-theme-preference="system" data-light-theme="{{ branding.default_theme|default:'light' }}" data-site-id="{{ current_site.pk }}" style="--brand:{{ branding.primary_color|default:'#116A53' }}">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% firstof page.seo_title page.title title 'Explore' %}{% endblock %} · {{ branding.display_name|default:current_site.site_name }}</title>
+  <meta name="color-scheme" content="light dark">
+  <link rel="alternate" type="application/rss+xml" title="Programme journal" href="/blog/feed/">
+  <meta name="description" content="{{ page.search_description|default:branding.tagline }}">
+  <meta name="htmx-config" content='{"historyRestoreAsHxRequest":false,"allowScriptTags":false,"timeout":15000}'>
+  {% if page %}<link rel="canonical" href="{% fullpageurl page %}">{% endif %}
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <script src="{% static 'js/site.js' %}"></script>
+  <script defer src="{% static 'js/htmx.min.js' %}"></script>
+  <script defer src="{% static 'js/alpine.min.js' %}"></script>
+</head>
+<body hx-history="false">
+<a href="#main" class="skip-link">Skip to content</a>
+<div class="utility-bar"><div class="shell utility-inner"><span>Learning opens possibilities. Together, we go further.</span><a href="{{ foundation_url }}">{% if current_programme %}Part of GECP Foundation ↗{% else %}Rooted in Ghana. Connected by purpose.{% endif %}</a></div></div>
+<header class="site-header">
+<div class="shell header-inner">
+  <a href="/" class="brand-lockup" aria-label="{{ branding.display_name }} home">
+  {% if branding.logo %}{% image branding.logo max-120x120 class="brand-logo" alt=branding.display_name %}{% else %}<span class="brand-monogram" aria-hidden="true">{{ branding.display_name|slice:':2' }}</span>{% endif %}
+  <span><strong>{{ branding.display_name|default:current_site.site_name }}</strong><small>{% if current_programme %}A GECP Foundation platform{% else %}Education & Career Pathways{% endif %}</small></span></a>
+  <nav class="desktop-nav" aria-label="Main navigation"><a href="/about/">About us</a>{% include 'core/partials/mega.html' %}<a href="/blog/">Journal</a><a href="/community/">Community</a><a href="/library/?scope=all">Media & resources</a></nav>
+  <div class="header-actions"><a href="/search/?scope={% if current_programme %}site{% else %}all{% endif %}" class="search-link" aria-label="Search"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></a><a href="/participate/{{ primary_intake }}/" class="button button-small header-cta">Get involved <span>↗</span></a></div>
+</div>
+<details class="mobile-menu shell"><summary>Explore {{ branding.display_name }} <span>＋</span></summary><nav aria-label="Mobile navigation"><a href="/about/">About us</a><a href="/programmes/">All programmes</a><a href="/explore/?kind=opportunities">Opportunities</a><a href="/blog/">Programme journal</a><a href="/community/">Community & issues</a><a href="/explore/?kind=events">Events</a><a href="/library/?scope=all">Media library</a><a href="/search/?scope=all">Search all GECP</a><a href="/contact/">Get involved</a></nav></details>
+</header>
+<main id="main">{% if messages %}<div class="shell flash-messages" role="status">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}{% block content %}{% endblock %}</main>
+<div id="request-status" class="request-status" role="status" hidden></div>
+{% include 'core/partials/footer.html' %}
+</body></html>
