@@ -29,7 +29,7 @@ def rate_limit(action, limit=10, seconds=600):
                 identity = (
                     f"user:{request.user.pk}" if request.user.is_authenticated else f"ip:{client_address(request)}"
                 )
-                key = salted_hmac("community-rate", f"{action}:{identity}").hexdigest()
+                key = salted_hmac("community-rate", f"{action}:{identity}", algorithm="sha256").hexdigest()
                 bucket = int(time.time()) // seconds
                 row, _ = RateLimit.objects.get_or_create(key=key, bucket=bucket)
                 changed = RateLimit.objects.filter(pk=row.pk, count__lt=limit).update(count=F("count") + 1)

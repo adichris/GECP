@@ -1,0 +1,15 @@
+{% autoescape off %}Hello,
+
+Thank you for contacting {{ site_name }}. We have received your {{ submission.kind_label|lower }}{% if submission.opportunity %} for "{{ submission.opportunity.title }}"{% endif %}.
+
+Your reference: {{ submission.reference }}
+Received: {{ submission.created_at|date:"j F Y, H:i" }} (GMT)
+
+Please quote this reference if you contact us about this submission. Our team reviews every message; there is no need to submit it again.
+{% if reply_email %}
+Questions? Reply to this email or write to {{ reply_email }}.
+{% endif %}
+If you did not make this submission, you can ignore this email.
+
+{{ site_name }}
+{% endautoescape %}

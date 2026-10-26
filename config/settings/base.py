@@ -97,3 +97,6 @@ EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
 EMAIL_TIMEOUT = 15
 TRUSTED_PROXY_IPS = env.list('TRUSTED_PROXY_IPS', default=[])
+# Submission emails: a reference receipt to the visitor, and an alert to these addresses plus the site's branding email.
+SUBMISSION_EMAILS_ENABLED = env.bool('SUBMISSION_EMAILS_ENABLED', default=True)
+SUBMISSION_NOTIFY_EMAILS = env.list('SUBMISSION_NOTIFY_EMAILS', default=[])

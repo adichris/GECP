@@ -1,7 +1,13 @@
 import secrets
 from django.utils.crypto import salted_hmac
 
-EMOJIS = ["🌱", "🌟", "🦋", "🌍", "🚀", "🎨", "🦉", "🐘", "🌻", "🐬", "💡", "📚"]
+def guest_key(token):
+    # SHA-1 is pinned deliberately: stored keys must keep matching existing guest sessions,
+    # and an HMAC (unlike a bare hash) remains sound with SHA-1.
+    return salted_hmac("community-guest", token, algorithm="sha1").hexdigest()
+
+
+EMOJIS =["🌱", "🌟", "🦋", "🌍", "🚀", "🎨", "🦉", "🐘", "🌻", "🐬", "💡", "📚"]
 
 
 def suggestion():
@@ -19,7 +25,7 @@ def owner_filter(request):
     token = request.session.get("community_guest_token")
     if not token:
         return {"pk__in": []}
-    return {"author__isnull": True, "guest_key": salted_hmac("community-guest", token).hexdigest()}
+    return {"author__isnull": True, "guest_key": guest_key(token)}
 
 
 def author_fields(request, form):
@@ -31,7 +37,7 @@ def author_fields(request, form):
         request.session["community_guest_token"] = token
     profile = {key: form.cleaned_data[key] for key in ("guest_name", "guest_emoji")}
     request.session["community_guest_profile"] = profile
-    return {"author": None, "guest_key": salted_hmac("community-guest", token).hexdigest(), **profile}
+    return {"author": None, "guest_key": guest_key(token), **profile}
 
 
 def contribution_form(form_class, request):

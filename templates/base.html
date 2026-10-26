@@ -1,4 +1,4 @@
-{% load static wagtailcore_tags wagtailimages_tags %}
+{% load static wagtailcore_tags wagtailimages_tags seo %}
 <!doctype html>
 <html lang="en" data-theme-preference="system" data-light-theme="{{ branding.default_theme|default:'light' }}" data-site-id="{{ current_site.pk }}" style="--brand:{{ branding.primary_color|default:'#116A53' }}">
 <head>
@@ -6,9 +6,19 @@
   <title>{% block title %}{% firstof page.seo_title page.title title 'Explore' %}{% endblock %} · {{ branding.display_name|default:current_site.site_name }}</title>
   <meta name="color-scheme" content="light dark">
   <link rel="alternate" type="application/rss+xml" title="Programme journal" href="/blog/feed/">
-  <meta name="description" content="{{ page.search_description|default:branding.tagline }}">
+  <meta name="description" content="{% firstof page.search_description page.summary branding.tagline %}">
   <meta name="htmx-config" content='{"historyRestoreAsHxRequest":false,"allowScriptTags":false,"timeout":15000}'>
   {% if page %}<link rel="canonical" href="{% fullpageurl page %}">{% endif %}
+  {% share_image_url as og_image %}
+  <meta property="og:site_name" content="{{ branding.display_name|default:current_site.site_name }}">
+  <meta property="og:title" content="{% firstof page.seo_title page.title title branding.display_name %}">
+  <meta property="og:description" content="{% firstof page.search_description page.summary branding.tagline %}">
+  <meta property="og:type" content="{% if page.published_date %}article{% else %}website{% endif %}">
+  {% if page %}<meta property="og:url" content="{% fullpageurl page %}">{% endif %}
+  <meta property="og:locale" content="en_GB">
+  {% if og_image %}<meta property="og:image" content="{{ og_image }}"><meta name="twitter:card" content="summary_large_image">{% else %}<meta name="twitter:card" content="summary">{% endif %}
+  {% structured_data og_image %}
+  <link rel="alternate" type="text/calendar" title="Events" href="/events/calendar.ics">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   <script src="{% static 'js/site.js' %}"></script>
   <script defer src="{% static 'js/htmx.min.js' %}"></script>

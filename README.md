@@ -8,7 +8,7 @@ See [Community operations](docs/COMMUNITY_OPERATIONS.md) for installation, moder
 
 This release was developed in `outputs/gecp-platform-source/gecp-platform`. Its local review database uses port **8011** to avoid the older port-8000 server. Fresh installations can use the usual port 8000. Update previously extracted copies separately, preserving their database, media and environment files.
 
-A runnable MVP of a modular Django/Wagtail monolith. One application and PostgreSQL database power a foundation website and independently branded programme websites. Python 3.12, Django 5.2 LTS, Wagtail 7.4 LTS, Tailwind 4, daisyUI 5, HTMX 2, Alpine.js 3, crispy forms and crispy-tailwind.
+A runnable MVP of a modular Django/Wagtail monolith. One application and PostgreSQL database power a foundation website and independently branded programme websites. Python 3.12+, Django 6.1, Wagtail 8.0, Tailwind 4, daisyUI 5, HTMX 2, Alpine.js 3, crispy forms and crispy-tailwind.
 
 ## Start with Docker
 
@@ -96,6 +96,13 @@ Content is edited in Wagtail, with its publishing/revision workflow. Add news, e
 
 Search uses Wagtail's database search backend. Visitors can choose the current site or the registered foundation network, with an optional programme filter. Both scopes exclude drafts and restricted pages. PostgreSQL gives the production search implementation. Rebuild the index with `python manage.py update_index` after bulk imports or backend changes. SEO fields, canonical URLs and a per-site `/sitemap.xml` are included.
 
+## Events, sharing and search engines
+
+- Event listings show **upcoming** events soonest first, with a **past** archive at `/explore/?kind=events&when=past`. Past events hide their registration button.
+- Each event offers **Add to my calendar** (`/events/<id>/calendar.ics`), and every site publishes a subscribable calendar at `/events/calendar.ics` (upcoming events plus the last 90 days). Drafts, private pages and other sites' events are never included.
+- Opportunity listings put open calls first, closing soonest; homepages only feature opportunities that are still open.
+- Pages carry Open Graph/Twitter sharing tags (title, summary, 1200×630 image from the page, hero or site logo) and schema.org JSON-LD: `Organization` on homepages, `Event` on events, `BlogPosting`/`NewsArticle` on articles. `robots.txt` advertises the per-site sitemap.
+
 ## Editors and permissions
 
 1. Create an editor through Wagtail's Users screen; enable staff status for operations-admin access.
@@ -110,7 +117,7 @@ This is shared organisational infrastructure, not a security boundary between un
 
 ## Forms and personal data
 
-Submissions are stored in the database with site, optional opportunity, consent, status, timestamp and a unique receipt. The visitor receives an on-screen confirmation; email delivery is not implemented. Forms require CSRF, validate opportunity scope/deadline, include a honeypot, throttle the session, and use a unique database-backed submission reference to prevent duplicate retries. The operations admin keeps submitted details read-only and allows status updates.
+Submissions are stored in the database with site, optional opportunity, consent, status, timestamp and a unique receipt. The visitor receives an on-screen confirmation and an email receipt quoting the reference (it never repeats their message, so a mistyped address cannot be used to relay text). The site team is alerted at the site's branding email plus any `SUBMISSION_NOTIFY_EMAILS`, with a direct link to the record. Emails are sent after the database commit; delivery failures are logged and never lose a submission. Set `SUBMISSION_EMAILS_ENABLED=False` to turn both off. Forms require CSRF, validate opportunity scope/deadline, include a honeypot, throttle the session, and use a unique database-backed submission reference to prevent duplicate retries. The operations admin keeps submitted details read-only and allows status updates, internal staff notes, search by name/email/reference, bulk "reviewing"/"closed" actions and a CSV export (formula-prefixed cells are neutralised against spreadsheet injection).
 
 For a public deployment, configure the supplied edge rate limit, approve a real privacy notice, define a retention policy and establish staff review procedures. Session throttling alone does not stop a bot that discards cookies. No CV uploads, payments, scholarship decisions, counselling booking calendar or mailing workflow are implied by this MVP.
 

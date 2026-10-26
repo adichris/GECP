@@ -12,6 +12,7 @@ from apps.engagement.views import contact, apply, intake
 from django.contrib.auth import views as auth_views
 from apps.community import views as community_views
 from apps.news.feeds import BlogFeed
+from apps.events.views import event_ics, site_calendar
 
 urlpatterns = [
     path('community/', include('apps.community.urls')),
@@ -25,6 +26,8 @@ urlpatterns = [
     path('accounts/password-change/', auth_views.PasswordChangeView.as_view(template_name='registration/password_change_form.html', success_url='/community/my-activity/'), name='password_change'),
     path('blog/feed/', BlogFeed(), name='blog_feed'),
     path('blog/', blog, name='blog'),
+    path('events/calendar.ics', site_calendar, name='events_calendar'),
+    path('events/<int:pk>/calendar.ics', event_ics, name='event_ics'),
     path('healthz/', health, name='health'),
     path('admin/', include(wagtailadmin_urls)),
     path('operations/', admin.site.urls),

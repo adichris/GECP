@@ -1,5 +1,12 @@
 # Verification — 30 September 2026
 
+## Platform improvements — 22 October 2026
+
+- 77 Python tests pass (12 new): homepage search scope, upcoming/past events, open-first opportunities, iCalendar escaping/line folding/site and draft scoping, submission receipts and staff alerts (sent once, never echoing visitor text, failure-tolerant), admin bulk actions and CSV injection safety, Open Graph and JSON-LD (including `</script>` escaping), and robots.txt sitemap.
+- Theme tests, Ruff, `manage.py check` and the migration consistency check pass. The frontend was rebuilt.
+- Dependencies are now pinned in `requirements.txt` to the versions the suite ran against (Django 6.1.2, Wagtail 8.0, Python 3.15 locally; CI uses 3.12).
+- Not verified here: a browser pass of the new screens, real SMTP delivery and the PostgreSQL/Docker path.
+
 ## Community release — 11 October 2026
 
 - 65 Python tests pass, including registration, CSRF, cross-site/private comment rejection, locking, scoped moderation and audit records, escaping, author-only withdrawal, report deduplication, bookmarks, RSS privacy, recovery links, request limits and trusted proxy handling.
@@ -22,7 +29,7 @@
 
 The local preview uses SQLite and Django’s development server. Docker is not installed on this machine, so the Docker image, Compose services and live PostgreSQL tests have not been executed locally. A CI workflow is provided to test PostgreSQL and build the image after the project is placed in a repository; that workflow has not run here.
 
-Before public operation: configure the real domains and site ports, HTTPS and trusted proxy, PostgreSQL, durable media storage, backups and recovery checks. Create named administrator accounts. Replace the starter privacy notice with the organisation’s approved notice and establish a retention/follow-up process. Submissions are stored in the admin queue; automated email delivery, appointment scheduling, payments and complex placement workflows are not implemented.
+Before public operation: configure the real domains and site ports, HTTPS and trusted proxy, PostgreSQL, durable media storage, backups and recovery checks. Create named administrator accounts. Replace the starter privacy notice with the organisation’s approved notice and establish a retention/follow-up process. Submissions are stored in the admin queue with email receipts and staff alerts (real delivery needs SMTP); appointment scheduling, payments and complex placement workflows are not implemented.
 
 ## Content and media
 

@@ -1,9 +1,10 @@
-Django>=5.2.17,<5.3
-wagtail>=7.4.3,<7.5
+# Direct dependencies. requirements.txt pins the full tested set.
+Django>=6.1.2,<6.2
+wagtail>=8.0,<8.1
 psycopg[binary]>=3.3,<4
-django-environ>=0.12,<0.13
+django-environ>=0.14,<0.15
 whitenoise>=6.12,<7
 django-crispy-forms>=2.7,<3
 crispy-tailwind>=1.0.3,<2
-gunicorn>=23,<24
+gunicorn>=26,<27
 Pillow>=12.3,<13

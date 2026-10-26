@@ -8,7 +8,10 @@ The platform remains a Django/Wagtail modular monolith. This review covers the r
 | Publishing | Wagtail revisions, richer programme homepages, news/events/opportunities/resources, 25 blog articles and seven library assets |
 | Discovery | Site/network search, programme and blog filters, sitemaps, media library |
 | Appearance | Light/dark/system preferences, operating-system change detection, per-site persistence, brand-aware light palette, responsive layouts and reduced motion |
-| Participation | Programme-specific forms, contact and applications, consent, CSRF, honeypot, replay protection and shared rate limits |
+| Participation | Programme-specific forms, contact and applications, consent, CSRF, honeypot, replay protection, shared rate limits, email receipts and staff alerts |
+| Events | Upcoming/past listings, per-event and per-site iCalendar (.ics) downloads |
+| Sharing and SEO | Open Graph/Twitter tags, schema.org JSON-LD (Organization, Event, BlogPosting), sitemap in robots.txt |
+| Submissions admin | Search, staff notes, bulk status actions and injection-safe CSV export |
 | Community | Discussions/questions/issues/suggestions, comments, one-level replies, moderation, reporting and periodic updates |
 | Issue handling | Open/resolved state, author resolution/reopening and moderator locks |
 | Accounts | Registration, sign-in/out, password changes/recovery and host-local sessions |

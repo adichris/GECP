@@ -40,10 +40,20 @@ def explore(request):
     kind = request.GET.get('kind', 'opportunities')
     if kind not in kinds:
         kind = 'opportunities'
-    items = kinds[kind].objects.live().public().descendant_of(request.site.root_page).order_by('-first_published_at')
+    items = kinds[kind].objects.live().public().descendant_of(request.site.root_page)
+    when = ''
+    if kind == 'events':
+        when = 'past' if request.GET.get('when') == 'past' else 'upcoming'
+        items = items.past() if when == 'past' else items.upcoming()
+    elif kind == 'opportunities':
+        items = items.open_first()
+    elif kind == 'news':
+        items = items.order_by('-published_date', '-first_published_at')
+    else:
+        items = items.order_by('-first_published_at')
     page = Paginator(items, 9).get_page(request.GET.get('page'))
     template = 'core/partials/listing.html' if is_partial(request) else 'core/explore.html'
-    return render(request, template, {'items': page, 'kind': kind, 'kinds': kinds})
+    return render(request, template, {'items': page, 'kind': kind, 'kinds': kinds, 'when': when})
 
 
 @require_GET
@@ -81,4 +91,6 @@ def asset_detail(request, slug):
     return render(request, 'core/asset_detail.html', {'title': asset.title, 'asset': asset})
 
 def robots(request):
-    return HttpResponse('User-agent: *\nDisallow: /admin/\nDisallow: /operations/\n', content_type='text/plain')
+    lines = ['User-agent: *', 'Disallow: /admin/', 'Disallow: /operations/', 'Disallow: /accounts/',
+             f'Sitemap: {request.build_absolute_uri("/sitemap.xml")}']
+    return HttpResponse('\n'.join(lines) + '\n', content_type='text/plain')

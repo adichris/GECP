@@ -1,5 +1,6 @@
 from django.core.validators import RegexValidator
 from django.db import models
+from django.db.models import F
 from modelcluster.fields import ParentalKey
 from modelcluster.models import ClusterableModel
 from wagtail.admin.panels import FieldPanel, InlinePanel, MultiFieldPanel
@@ -76,7 +77,7 @@ class HomePage(Page):
         context['programmes'] = network['network_programmes']
         context['latest_blogs'] = public_pages(request, NewsPage, across_network=is_foundation).filter(content_kind='blog').order_by('-published_date', '-first_published_at')[:3]
         context['latest_news'] = public_pages(request, NewsPage, across_network=is_foundation).order_by('-published_date', '-first_published_at')[:3]
-        context['opportunities'] = OpportunityPage.objects.live().public().descendant_of(self).order_by('-first_published_at')[:3]
+        context['opportunities'] = OpportunityPage.objects.live().public().descendant_of(self).open().order_by(F('deadline').asc(nulls_last=True), '-first_published_at')[:3]
         context['partners'] = Partner.objects.filter(sites=request.site).distinct()
         context['library_assets'] = LibraryAsset.objects.filter(is_public=True, sites__in=network['network_sites'] if is_foundation else [request.site]).select_related('image').distinct()[:4]
         context['initiatives'] = network['current_programme'].initiatives.prefetch_related('projects__activities').select_related('linked_site') if network['current_programme'] else []

@@ -1,0 +1,18 @@
+{% autoescape off %}A new {{ submission.kind_label|lower }} was submitted on {{ site_name }}.
+
+Reference: {{ submission.reference }}
+Received:  {{ submission.created_at|date:"j F Y, H:i" }} (GMT)
+Name:      {{ submission.name }}
+Email:     {{ submission.email }}{% if submission.opportunity %}
+Opportunity: {{ submission.opportunity.title }}{% endif %}
+{% for label, value in submission.detail_items %}
+{{ label }}: {{ value|default:"—" }}{% endfor %}
+
+Message:
+{{ submission.message|default:"(none)" }}
+
+Review and update its status:
+{{ admin_url }}
+
+This email contains personal data. Do not forward it outside the review team.
+{% endautoescape %}

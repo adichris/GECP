@@ -9,6 +9,7 @@ from django.views.decorators.cache import never_cache
 from apps.opportunities.models import OpportunityPage
 from .forms import SubmissionForm, ProgrammeIntakeForm
 from .models import Submission
+from .notifications import send_submission_emails
 from apps.community.security import rate_limit
 from .intake import INTAKES, PROGRAMME_INTAKE
 from apps.core.services import network_context
@@ -35,10 +36,12 @@ def handle_submission(request, opportunity=None, kind='contact'):
                 obj.site = request.site
                 obj.opportunity = opportunity
                 obj.kind = kind
-                obj, _ = Submission.objects.get_or_create(
+                obj, created = Submission.objects.get_or_create(
                     reference=uuid.UUID(token),
                     defaults={field: getattr(obj, field) for field in ['site', 'opportunity', 'name', 'email', 'message', 'consent', 'kind', 'details']},
                 )
+                if created:
+                    transaction.on_commit(lambda submission=obj: send_submission_emails(submission))
             request.session.pop(session_key, None)
             request.session['last_submission'] = timezone.now().timestamp()
             request.session['submission_receipt'] = str(obj.reference)
