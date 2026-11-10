@@ -1,5 +1,11 @@
 # Verification — 30 September 2026
 
+## Staff portfolios — 10 November 2026
+
+- 87 Python tests pass (10 new): staff-only editing, profile creation with metadata-stripped and resized photos, optional project links, bad date/file rejection, ownership of edits and deletes, public/private/hidden/former-staff visibility, programme-scoped directories and filters, escaping, LinkedIn URL validation and image cleanup on delete.
+- Ruff, theme tests, migration checks and the frontend build pass. The local database was migrated.
+- Not verified here: a browser pass of the new pages.
+
 ## Platform improvements — 22 October 2026
 
 - 77 Python tests pass (12 new): homepage search scope, upcoming/past events, open-first opportunities, iCalendar escaping/line folding/site and draft scoping, submission receipts and staff alerts (sent once, never echoing visitor text, failure-tolerant), admin bulk actions and CSV injection safety, Open Graph and JSON-LD (including `</script>` escaping), and robots.txt sitemap.

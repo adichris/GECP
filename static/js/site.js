@@ -64,5 +64,9 @@
     document.body.addEventListener('htmx:afterSwap', () => {
       const notice = document.getElementById('request-status'); if (notice) notice.hidden = true;
     });
+    document.addEventListener('submit', event => {
+      const message = event.target.dataset && event.target.dataset.confirm;
+      if (message && !window.confirm(message)) event.preventDefault();
+    });
   });
 })();

@@ -72,6 +72,7 @@ apps/opportunities/ OpportunityPage with deadline and application entry point
 apps/resources/  ResourcePage with Wagtail document or external URL
 apps/partners/   partners shared across selected sites
 apps/engagement/ validated contact/application submissions and review admin
+apps/staff/      staff profiles and portfolios, optionally linked to projects
 templates/       shared responsive layouts and HTMX partials
 frontend/        Tailwind/daisyUI source and asset build
 deploy/          reverse-proxy example
@@ -102,6 +103,18 @@ Search uses Wagtail's database search backend. Visitors can choose the current s
 - Each event offers **Add to my calendar** (`/events/<id>/calendar.ics`), and every site publishes a subscribable calendar at `/events/calendar.ics` (upcoming events plus the last 90 days). Drafts, private pages and other sites' events are never included.
 - Opportunity listings put open calls first, closing soonest; homepages only feature opportunities that are still open.
 - Pages carry Open Graph/Twitter sharing tags (title, summary, 1200×630 image from the page, hero or site logo) and schema.org JSON-LD: `Organization` on homepages, `Event` on events, `BlogPosting`/`NewsArticle` on articles. `robots.txt` advertises the per-site sitemap.
+
+## Staff portfolios
+
+Staff showcase their work at `/team/`. Any active account with **staff status** (set by an administrator in Wagtail's Users screen) can sign in and open **My portfolio** at `/team/me/`:
+
+1. Create a profile: public name, role, short bio, optional photo, the programmes they work with and optional website/LinkedIn links.
+2. Add portfolio items: title, type (project work, publication, training, event, award or other), role, summary, details, dates, link and image. **Selecting the GECP projects they worked on is optional**; projects come from the operations admin hierarchy (the seeded "Demonstration delivery pilot" placeholders are not offered).
+3. Profiles and individual items can be kept private. Staff can edit or delete only their own work.
+
+The foundation site lists every public profile, with search and a programme filter. Each programme site lists only staff linked to that programme or with public work on its projects. A profile disappears from the public site if it is made private, hidden by an administrator, or the account loses staff status or is deactivated. Superusers manage profiles and items under **Staff portfolios** in `/operations/`, with bulk hide/restore actions.
+
+Uploaded photos and images (JPEG, PNG or WebP, up to 5 MB) are re-encoded on upload: camera/location metadata is removed and the longest edge is limited to 1600px. Replaced or deleted images are removed from storage. Profile text is plain text and escaped. Portfolio data is included in the account's data export.
 
 ## Editors and permissions
 

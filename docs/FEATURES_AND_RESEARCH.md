@@ -11,6 +11,7 @@ The platform remains a Django/Wagtail modular monolith. This review covers the r
 | Participation | Programme-specific forms, contact and applications, consent, CSRF, honeypot, replay protection, shared rate limits, email receipts and staff alerts |
 | Events | Upcoming/past listings, per-event and per-site iCalendar (.ics) downloads |
 | Sharing and SEO | Open Graph/Twitter tags, schema.org JSON-LD (Organization, Event, BlogPosting), sitemap in robots.txt |
+| Staff portfolios | Staff profiles and portfolio items, optional project links, programme-scoped team directory, private items, admin hiding and metadata-stripped images |
 | Submissions admin | Search, staff notes, bulk status actions and injection-safe CSV export |
 | Community | Discussions/questions/issues/suggestions, comments, one-level replies, moderation, reporting and periodic updates |
 | Issue handling | Open/resolved state, author resolution/reopening and moderator locks |

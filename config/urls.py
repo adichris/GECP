@@ -16,6 +16,7 @@ from apps.events.views import event_ics, site_calendar
 
 urlpatterns = [
     path('community/', include('apps.community.urls')),
+    path('team/', include('apps.staff.urls')),
     path('accounts/register/', community_views.register, name='register'),
     path('accounts/login/', community_views.CommunityLoginView.as_view(), name='login'),
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),

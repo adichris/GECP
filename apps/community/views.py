@@ -359,6 +359,14 @@ def export_account(request):
             )
         ),
     }
+    profile = getattr(request.user, "staff_profile", None)
+    if profile:
+        data["staff_portfolio"] = {
+            "display_name": profile.display_name, "job_title": profile.job_title, "bio": profile.bio,
+            "is_public": profile.is_public,
+            "items": list(profile.items.values("title", "kind", "role", "summary", "description", "link_url",
+                                               "started_on", "ended_on", "is_public", "created_at")),
+        }
     response = JsonResponse(data)
     response["Content-Disposition"] = 'attachment; filename="gecp-community-data.json"'
     return response

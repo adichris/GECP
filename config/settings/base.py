@@ -10,7 +10,7 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '.localhost', '1
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
 INSTALLED_APPS = [
     'apps.core', 'apps.programmes', 'apps.news', 'apps.events',
-    'apps.opportunities', 'apps.resources', 'apps.partners', 'apps.engagement', 'apps.community',
+    'apps.opportunities', 'apps.resources', 'apps.partners', 'apps.engagement', 'apps.community', 'apps.staff',
     'wagtail.contrib.forms', 'wagtail.contrib.redirects', 'wagtail.contrib.settings',
     'wagtail.embeds', 'wagtail.sites', 'wagtail.users', 'wagtail.snippets',
     'wagtail.documents', 'wagtail.images', 'wagtail.search', 'wagtail.admin', 'wagtail',
