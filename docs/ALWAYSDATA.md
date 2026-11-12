@@ -2,7 +2,7 @@
 
 Scripted deploys live in `deploy/alwaysdata/`. You run `deploy.sh` on your machine (Linux, macOS or Git Bash on Windows). It builds the frontend, uploads a release over SSH and activates it with the server-side scripts in `deploy/alwaysdata/remote/`.
 
-Replace ACCOUNT, YOUR_DOMAIN and SITE_ID below. Use a custom domain for the programme subdomain network, and confirm DNS and certificate support before relying on nested subdomains of an alwaysdata.net address.
+Replace ACCOUNT (your hosting username, as in your home directory path) and YOUR_DOMAIN below. Use a custom domain for the programme subdomain network, and confirm DNS and certificate support before relying on nested subdomains of an alwaysdata.net address.
 
 ## Server layout
 
@@ -24,7 +24,7 @@ A release whose `requirements.txt` is unchanged reuses the existing virtualenv, 
 
 1. In the alwaysdata panel, create a PostgreSQL database and a user with access to it. Note the real names, which may carry an account prefix. The host is `postgresql-ACCOUNT.alwaysdata.net`.
 2. Under Environment > Python, select Python 3.12.
-3. Add your SSH public key under Remote access > SSH, and check that `ssh ACCOUNT@ssh-ACCOUNT.alwaysdata.net` works.
+3. Make sure you can `ssh` into the server from your machine. The deploy uses exactly that access.
 
 ## 2. Configure your machine (once)
 
@@ -32,15 +32,14 @@ A release whose `requirements.txt` is unchanged reuses the existing virtualenv, 
 cp deploy/alwaysdata/deploy.env.example deploy/alwaysdata/deploy.env
 ```
 
-Set `ALWAYSDATA_ACCOUNT`, `DOMAIN` and, once the site exists, `SITE_ID`. `deploy.env` is git-ignored and never uploaded.
+Set `DEPLOY_HOST` to what you already type after `ssh`: a `user@host` pair, or a Host alias from `~/.ssh/config`. Any custom port or key goes in `~/.ssh/config`. No hosting account name or API key is needed. `deploy.env` is git-ignored and never uploaded.
 
-For automatic restarts, create an API key under Profile > API keys and export it in your shell only. Never put it in a file:
+You can also skip the file for a one-off: `DEPLOY_HOST=user@host deploy/alwaysdata/deploy.sh deploy`.
 
-```sh
-export ALWAYSDATA_API_KEY=...
-```
-
-Without the key, deploy.sh prints a reminder to restart the site in the panel.
+Optional settings:
+- `DOMAIN` turns on the HTTPS health check after each deploy.
+- `RESTART_COMMAND` is a command run on the server to restart the app. If it's empty, deploy.sh reminds you to restart the site in the panel.
+- `LOG_FILE` sets the log that `deploy.sh logs` shows. The default is the newest uWSGI log.
 
 ## 3. Create the server layout and .env
 
@@ -81,7 +80,7 @@ The script runs these steps in order:
    - If migrations are pending, takes a `pg_dump` backup and then runs `migrate`.
    - Switches `current`.
    - Prunes old releases and unused virtualenvs.
-6. Restarts the site through the API, or reminds you to restart it in the panel.
+6. Runs `RESTART_COMMAND` on the server, or reminds you to restart the site in the panel.
 7. Checks `https://DOMAIN/healthz/` (`SKIP_HEALTHCHECK=1` skips this).
 
 Any failure before the switch leaves the live release untouched.
@@ -120,8 +119,6 @@ The paths go through the `current` symlink, so they never change between release
 - `TRUST_PROXY_SSL_HEADER=True` relies on alwaysdata's front proxy, which supplies X-Forwarded-Proto. Do not expose the app around that proxy.
 - Keep the platform HTTP cache disabled for this dynamic app.
 - HSTS includes subdomains, so confirm that every subdomain serves HTTPS before launch.
-
-Copy the site ID from the site's URL in the panel into `SITE_ID` in deploy.env.
 
 ## 6. Media files (images and staff photos)
 
@@ -168,8 +165,9 @@ pg_restore --clean --no-owner --dbname="$DATABASE_URL" ~/gecp/shared/backups/db-
 | `deploy.sh rollback [RELEASE]` | Point `current` at the previous release (or a named one) and restart |
 | `deploy.sh status` | Current release, releases on disk, recent history, disk usage |
 | `deploy.sh backup` | Immediate database and media backup |
-| `deploy.sh restart` | Restart the Python site through the API |
-| `deploy.sh logs` | Tail `~/admin/logs/uwsgi/SITE_ID.log` (`LINES=300` for more) |
+| `deploy.sh restart` | Run `RESTART_COMMAND` on the server |
+| `deploy.sh logs` | Tail the newest uWSGI log, or `LOG_FILE` (`LINES=300` for more) |
+| `deploy.sh ssh` | Open a shell on the server in the current release |
 
 **Rollback is code only.** Migrations are not reversed. If the bad release changed the schema, check that the older code still works with it. Otherwise, restore the `db-...-pre-<release>.dump` that was taken right before that release migrated.
 
@@ -199,6 +197,5 @@ Check that client IP handling sees distinct visitors. If REMOTE_ADDR is the real
 - [Python WSGI and virtual environments](https://help.alwaysdata.com/en/docs/web-hosting/languages/python/configuration/)
 - [PostgreSQL](https://help.alwaysdata.com/en/docs/web-hosting/databases/postgresql/)
 - [SSH access](https://help.alwaysdata.com/en/docs/remote-access/ssh/)
-- [API authentication](https://help.alwaysdata.com/en/docs/api/)
 - [Site addresses and catch-all hosts](https://help.alwaysdata.com/en/docs/web-hosting/sites/add-a-site/)
 - [Proxy headers](https://help.alwaysdata.com/en/docs/web-hosting/sites/http-stack/)
