@@ -24,5 +24,3 @@ if TRUST_PROXY_SSL_HEADER:  # noqa: F405
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_REDIRECT_EXEMPT = [r'^healthz/$']
 
-
-INSTALLED_APPS.append("django.contrib.postgres")

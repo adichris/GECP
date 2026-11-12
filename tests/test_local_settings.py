@@ -74,3 +74,17 @@ def test_production_still_rejects_weak_settings_from_local_py():
 def test_broken_local_py_is_reported_not_ignored():
     out = settings_value('config.settings.dev', 'settings.DEBUG', 'import module_that_does_not_exist\n')
     assert "No module named 'module_that_does_not_exist'" in out
+
+
+def test_postgres_app_is_installed_for_every_settings_module():
+    # Wagtail search needs django.contrib.postgres on PostgreSQL (postgres.E005), whichever
+    # settings module runs, including a database configured only in local.py.
+    expr = "'django.contrib.postgres' in settings.INSTALLED_APPS"
+    pg = "DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql', 'NAME': 'gecp'}}\n"
+    assert settings_value('config.settings.dev', expr, pg) == 'True'
+    assert settings_value('config.settings.test', expr) == 'True'
+    assert settings_value('config.settings.production', expr, None, PRODUCTION_ENV) == 'True'
+    checks = ("__import__('django.core.checks', fromlist=['run_checks']).run_checks() == [] and "
+              "len(settings.INSTALLED_APPS) == len(set(settings.INSTALLED_APPS))")
+    assert settings_value('config.settings.dev', checks, pg) == 'True'
+    assert settings_value('config.settings.production', checks, None, PRODUCTION_ENV) == 'True'

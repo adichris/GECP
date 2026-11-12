@@ -19,6 +19,9 @@ INSTALLED_APPS = [
     'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
     'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles',
     'django.contrib.sitemaps',
+    # Wagtail search uses PostgreSQL full-text fields; harmless on SQLite, required on PostgreSQL
+    # whichever settings module runs (dev, production, CI or a local.py database).
+    'django.contrib.postgres',
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
