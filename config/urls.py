@@ -6,6 +6,7 @@ from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
 from wagtail.documents import urls as wagtaildocs_urls
 from wagtail.contrib.sitemaps.views import sitemap
+from apps.core.media import public_media
 from apps.core.views import health, search, explore, robots, directory, library, asset_detail, blog
 from apps.engagement.views import contact, apply, intake
 
@@ -46,4 +47,6 @@ urlpatterns = [
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+elif settings.SERVE_MEDIA:
+    urlpatterns += [path(f"{settings.MEDIA_URL.strip('/')}/<path:path>", public_media, name='public_media')]
 urlpatterns += [path('', include(wagtail_urls))]

@@ -75,7 +75,7 @@ apps/engagement/ validated contact/application submissions and review admin
 apps/staff/      staff profiles and portfolios, optionally linked to projects
 templates/       shared responsive layouts and HTMX partials
 frontend/        Tailwind/daisyUI source and asset build
-deploy/          reverse-proxy example
+deploy/          reverse-proxy example and alwaysdata deploy scripts
 tests/           routing, isolation, permissions, validation and submission tests
 ```
 
@@ -146,7 +146,17 @@ python manage.py collectstatic --noinput
 
 Tests use an isolated SQLite database by default. For the PostgreSQL test path, set `DJANGO_SETTINGS_MODULE=config.settings.ci` and `DATABASE_URL` to a PostgreSQL database whose user can create a test database, then run `pytest`. CI runs tests with PostgreSQL 16, builds assets and builds the Docker image. See `VERIFICATION.md` for what was actually run in the build environment.
 
+### Local settings
+
+Keep your machine's own settings in `config/settings/local.py`, such as your local database (`DATABASES`) and email server (`EMAIL_*`). Copy `config/settings/local.py.example` to start. The file is git-ignored and never deployed. App options such as `SERVE_MEDIA`, `MEDIA_CACHE_SECONDS`, `SUBMISSION_EMAILS_ENABLED` and `SUBMISSION_NOTIFY_EMAILS` go there too, and any other setting can be overridden. It loads last in the dev and production settings. The test and CI settings ignore it so results are the same on every machine. On alwaysdata, `deploy.sh setup` creates `~/gecp/shared/local.py`, and every release links it in.
+
+### Team directory sample data
+
+`python manage.py seed_staff --owner <your-username>` adds your own staff profile to an existing account (its password and permissions are not changed) and the GECP team members listed in `apps/staff/management/commands/seed_staff.py`, with photos from `apps/staff/seed_photos/`. Team member accounts start with unusable passwords; set one in the admin (or use password reset) when the person should manage their own portfolio. `--demo` adds five fictional sample colleagues and `--remove-demo` deletes them. Re-running updates records in place and never replaces a photo uploaded at `/team/me/`.
+
 ## Production deployment
+
+**alwaysdata:** `deploy/alwaysdata/deploy.sh` runs scripted, atomic releases. It handles setup, deploy, rollback, backups and status. See `docs/ALWAYSDATA.md`. The Docker steps below are for a self-managed host.
 
 1. Provision PostgreSQL, persistent media storage, DNS and HTTPS for the apex domain and programme subdomains. This repository does not provision a cloud account or certificates.
 2. Set `.env`: a random `SECRET_KEY` of at least 50 characters, strong database credentials, explicit `ALLOWED_HOSTS` (for example `gecpfoundation.org,.gecpfoundation.org`), matching HTTPS `CSRF_TRUSTED_ORIGINS`, and `ADMIN_BASE_URL=https://gecpfoundation.org`.

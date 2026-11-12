@@ -1,4 +1,5 @@
 from pathlib import Path
+import importlib
 import environ
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -59,6 +60,12 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+# Production media: Django serves these public image folders itself unless SERVE_MEDIA = False
+# in local.py (set that when nginx or an alwaysdata static site already handles /media/).
+# Documents are never served from /media/; they go through Wagtail's /documents/ views.
+SERVE_MEDIA = True
+PUBLIC_MEDIA_PREFIXES = ('images/', 'staff/photos/', 'staff/portfolio/')
+MEDIA_CACHE_SECONDS = 60 * 60 * 24 * 30
 STORAGES = {
     'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
     'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
@@ -97,6 +104,24 @@ EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
 EMAIL_TIMEOUT = 15
 TRUSTED_PROXY_IPS = env.list('TRUSTED_PROXY_IPS', default=[])
+# Enable only behind a trusted proxy that overwrites X-Forwarded-Proto (applied in production.py).
+TRUST_PROXY_SSL_HEADER = env.bool('TRUST_PROXY_SSL_HEADER', default=False)
 # Submission emails: a reference receipt to the visitor, and an alert to these addresses plus the site's branding email.
-SUBMISSION_EMAILS_ENABLED = env.bool('SUBMISSION_EMAILS_ENABLED', default=True)
-SUBMISSION_NOTIFY_EMAILS = env.list('SUBMISSION_NOTIFY_EMAILS', default=[])
+# Submission notifications (override in local.py).
+SUBMISSION_EMAILS_ENABLED = True
+SUBMISSION_NOTIFY_EMAILS = []
+
+
+def local_overrides():
+    """Settings from config/settings/local.py (git-ignored), or {} when there is none.
+
+    Secrets and infrastructure come from .env / the environment; local.py is the place for
+    per-machine and per-server choices. It is applied last, so it can override anything.
+    """
+    try:
+        module = importlib.import_module('config.settings.local')
+    except ModuleNotFoundError as exc:
+        if exc.name != 'config.settings.local':
+            raise  # local.py exists but imports something missing: surface that error
+        return {}
+    return {name: value for name, value in vars(module).items() if name.isupper()}

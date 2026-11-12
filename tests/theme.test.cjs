@@ -8,7 +8,7 @@ function browser(saved, dark, storageBlocked=false, lightTheme='light') {
   const selector={value:'',addEventListener:(name,fn)=>selectorEvents[name]=fn};
   const media={matches:dark,addEventListener:(name,fn)=>media.change=fn};
   const store={value:saved,getItem(){if(storageBlocked)throw Error();return this.value;},setItem(key,value){if(storageBlocked)throw Error();this.value=value;}};
-  const document={documentElement:root,addEventListener:(name,fn)=>events[name]=fn,getElementById:id=>id==='theme-selector'?selector:null,querySelectorAll:()=>[],body:{addEventListener(){}}};
+  const document={documentElement:root,addEventListener:(name,fn)=>events[name]=fn,getElementById:id=>id==='theme-selector'?selector:null,querySelectorAll:()=>[],querySelector:()=>null,body:{addEventListener(){}}};
   const window={matchMedia:query=>query.includes('color-scheme')?media:{matches:true},addEventListener:(name,fn)=>windowEvents[name]=fn};
   vm.runInNewContext(source,{document,window,localStorage:store});
   events.DOMContentLoaded();

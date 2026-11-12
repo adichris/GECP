@@ -1,0 +1,35 @@
+"""Your machine's settings. Copy to config/settings/local.py and edit.
+
+local.py is git-ignored and never deployed: it stays on this machine. It is loaded last by the
+dev settings (and by production on a server that has its own local.py), so anything here
+overrides .env and config/settings/base.py. The test and CI settings ignore it.
+"""
+
+# Local database (overrides DATABASE_URL). Default without this: whatever .env / base.py sets.
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'gecp',
+#         'USER': 'gecp',
+#         'PASSWORD': 'your-local-password',
+#         'HOST': 'localhost',
+#         'PORT': '5432',
+#     }
+# }
+
+# Local email server. Default without this: emails are printed to the console.
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'localhost'      # e.g. Mailpit/MailHog on port 1025
+# EMAIL_PORT = 1025
+# EMAIL_HOST_USER = ''
+# EMAIL_HOST_PASSWORD = ''
+# EMAIL_USE_TLS = False
+# DEFAULT_FROM_EMAIL = 'GECP Foundation <no-reply@localhost>'
+
+# Media: serve public images (/media/images/, /media/staff/...) through Django when DEBUG is off.
+# SERVE_MEDIA = True
+# MEDIA_CACHE_SECONDS = 60 * 60 * 24 * 30
+
+# Contact and application notifications.
+# SUBMISSION_EMAILS_ENABLED = True
+# SUBMISSION_NOTIFY_EMAILS = ['you@example.org']

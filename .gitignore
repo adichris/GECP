@@ -12,3 +12,9 @@ static/css/app.css
 static/js/htmx.min.js
 static/js/alpine.min.js
 static/fonts/
+
+# Local alwaysdata deploy settings
+deploy/alwaysdata/deploy.env
+
+# Per-machine settings (see config/settings/local.py.example)
+config/settings/local.py

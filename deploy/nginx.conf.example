@@ -15,14 +15,14 @@ server {
     ssl_certificate /etc/letsencrypt/live/example.org/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/example.org/privkey.pem;
     client_max_body_size 22m;
-    # Wagtail document requests go through Django for access checks.
-    location /media/ {
-        alias /srv/gecp/media/;
+    # Public images only, mirroring PUBLIC_MEDIA_PREFIXES in config/settings/base.py.
+    # Documents (and original uploads) never bypass Wagtail's permission-checked /documents/ views.
+    location ~ ^/media/(images|staff/photos|staff/portfolio)/[^/]+\.(jpe?g|png|webp|gif|avif)$ {
+        root /srv/gecp;
         add_header X-Content-Type-Options nosniff always;
-        # Original documents must never bypass Wagtail's serve view.
-        location ~ ^/media/documents/ { deny all; }
-        location ~* \.(html|htm|svg|js)$ { deny all; }
+        add_header Cache-Control "public, max-age=2592000" always;
     }
+    location /media/ { return 404; }
     location ~ ^/(contact|apply|participate|accounts|community|admin/login|operations/login)/ {
         limit_req zone=gecp_forms burst=5 nodelay;
         limit_req_status 429;

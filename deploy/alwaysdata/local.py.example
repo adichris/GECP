@@ -1,0 +1,15 @@
+"""Production choices for alwaysdata. deploy.sh setup copies this to ~/gecp/shared/local.py;
+every release links it in as config/settings/local.py. Edit it on the server, then restart the site.
+
+Plain Python: values are not quoted strings from a .env file. Secrets stay in shared/.env.
+Production safety rules (DEBUG off, HTTPS, PostgreSQL, ALLOWED_HOSTS) still apply after this file.
+"""
+
+# Media: the app serves public images itself. Set False only if alwaysdata static sites
+# already serve /media/images/ and /media/staff/.
+SERVE_MEDIA = True
+MEDIA_CACHE_SECONDS = 60 * 60 * 24 * 30
+
+# Contact and application notifications; empty list = the site's programme contact address.
+SUBMISSION_EMAILS_ENABLED = True
+SUBMISSION_NOTIFY_EMAILS = []
