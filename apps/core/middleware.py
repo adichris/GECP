@@ -12,7 +12,12 @@ class StrictSiteMiddleware:
             return self.get_response(request)
         host, port = split_domain_port(request.get_host())
         port = int(port or (443 if request.is_secure() else 80))
-        site = Site.objects.select_related('root_page').filter(hostname=host, port=port).first()
+        sites = Site.objects.select_related('root_page')
+        site = sites.filter(hostname=host, port=port).first()
+        if site is None and port in (80, 443):
+            # Behind an HTTPS-terminating proxy the scheme (and so the default port) can differ from
+            # the port a site was registered with; standard web ports are treated as equivalent.
+            site = sites.filter(hostname=host, port=443 if port == 80 else 80).first()
         if site is None:
             return HttpResponseNotFound('This hostname and port are not configured for a GECP site.')
         request.site = site

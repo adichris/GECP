@@ -1,6 +1,7 @@
 """Seed the team directory.
 
-    python manage.py seed_staff --owner addai        # your profile + GECP team members
+    python manage.py seed_staff                      # your profile + GECP team members
+    python manage.py seed_staff --owner USERNAME     # attach your profile to a specific account
     python manage.py seed_staff --demo               # also add fictional sample colleagues
     python manage.py seed_staff --remove-demo        # delete the sample colleagues again
 
@@ -37,6 +38,7 @@ PROJECTS = [
 ]
 
 OWNER = {
+    'username': 'addai',
     'first_name': 'Addai', 'last_name': 'Christopher',
     'display_name': 'Addai Christopher',
     'job_title': 'Director of Technology & Digital Innovation',
@@ -172,7 +174,8 @@ class Command(BaseCommand):
     help = 'Seed the staff directory with your profile (--owner) and sample colleagues.'
 
     def add_arguments(self, parser):
-        parser.add_argument('--owner', help='Username of an existing account to attach your profile to.')
+        parser.add_argument('--owner', help='Username for your profile. Default: "addai", an account named '
+                            'Addai Christopher, or the only superuser.')
         parser.add_argument('--demo', action='store_true', help='Also add fictional sample colleagues.')
         parser.add_argument('--remove-demo', action='store_true', help='Delete the sample colleagues and exit.')
 
@@ -189,10 +192,13 @@ class Command(BaseCommand):
         if not Programme.objects.exists():
             raise CommandError('No programmes found. Run scripts/seed_all.py first.')
 
-        if owner:
-            user = User.objects.filter(username=owner).first()
-            if user is None:
-                raise CommandError(f'No account named "{owner}". Create it first: manage.py createsuperuser')
+        user, how = self._find_owner(User, owner)
+        if user is None:
+            self.stderr.write(self.style.WARNING(
+                f'Skipped {OWNER["display_name"]}\'s profile: no matching account found ({how}). '
+                'Create your account (manage.py createsuperuser), then re-run with --owner <your-username>.'))
+        else:
+            self.stdout.write(f'Owner account: {user.username} ({how})')
             changed = []
             for field in ('first_name', 'last_name'):
                 if not getattr(user, field):
@@ -251,6 +257,29 @@ class Command(BaseCommand):
             item.save()
             item.projects.set(self._projects(item_spec['programme_projects']))
         return profile
+
+    @staticmethod
+    def _find_owner(User, username=None):
+        """The account that gets the owner's profile, and how it was chosen.
+
+        --owner wins; otherwise the default username, then an account with the owner's name,
+        then the only superuser (the usual case on a fresh server).
+        """
+        if username:
+            user = User.objects.filter(username=username).first()
+            if user is None:
+                raise CommandError(f'No account named "{username}". Create it first: manage.py createsuperuser')
+            return user, '--owner'
+        user = User.objects.filter(username=OWNER['username']).first()
+        if user:
+            return user, f'default username "{OWNER["username"]}"'
+        named = User.objects.filter(first_name__iexact=OWNER['first_name'], last_name__iexact=OWNER['last_name'])
+        if named.count() == 1:
+            return named.get(), f'name {OWNER["first_name"]} {OWNER["last_name"]}'
+        superusers = User.objects.filter(is_superuser=True, is_active=True)
+        if superusers.count() == 1:
+            return superusers.get(), 'the only superuser'
+        return None, f'{superusers.count()} superusers, none named "{OWNER["username"]}"'
 
     @staticmethod
     def _image(filename, prefix):

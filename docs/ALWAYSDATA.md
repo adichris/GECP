@@ -87,10 +87,10 @@ Only for a NEW EMPTY database, seed once after the first deploy:
 cd SITE
 .venv/bin/python scripts/seed_all.py --settings config.settings.production --domain YOUR_DOMAIN --port 443
 DJANGO_SETTINGS_MODULE=config.settings.production .venv/bin/python manage.py createsuperuser
-DJANGO_SETTINGS_MODULE=config.settings.production .venv/bin/python manage.py seed_staff --owner YOUR_USERNAME
+DJANGO_SETTINGS_MODULE=config.settings.production .venv/bin/python manage.py seed_staff
 ```
 
-Seeding reproduces the bundled content. It does not bring over local editorial changes, uploaded media, accounts or community activity. Never seed over a restored database. For restored content, update the existing Wagtail Sites to the final hostnames and port 443, keeping their root pages.
+Seeding reproduces the bundled content. It does not bring over local editorial changes, uploaded media, accounts or community activity. Never seed over a restored database. If the database was seeded or restored with other hostnames (for example `localhost:8000`), move every site at once with `python manage.py set_site_domain --domain YOUR_DOMAIN --port 443`. It only changes Wagtail Site hostnames and ports; pages and content stay.
 
 ### Rolling back
 
@@ -190,7 +190,7 @@ Check that client IP handling sees distinct visitors. If REMOTE_ADDR is the real
 ## Troubleshooting
 
 - **Python errors:** read the site's log in `~/admin/logs/uwsgi/`.
-- **Host not configured (404):** the Wagtail Site hostname or port doesn't match the request.
+- **"This hostname and port are not configured for a GECP site":** the Wagtail Sites don't match the domain. This usually happens when the database was seeded with the default `localhost:8000`. List them with `python manage.py shell -c "from wagtail.models import Site; print(list(Site.objects.values_list('hostname','port')))"`, then move them all with `python manage.py set_site_domain --domain YOUR_DOMAIN --port 443` (add `--dry-run` to preview).
 - **Redirect loop:** `TRUST_PROXY_SSL_HEADER` is missing.
 - **Missing images:** check `SERVE_MEDIA` in `local.py`, any static sites' roots, and that the file exists under `SITE/media`.
 - **Old code still served:** restart the site.

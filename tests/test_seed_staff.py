@@ -53,3 +53,38 @@ def test_seed_staff_remove_demo_and_unknown_owner():
     assert StaffProfile.objects.count() == 1  # real team members stay
     with pytest.raises(CommandError):
         call_command('seed_staff', owner='nobody')
+
+
+def owner_profile():
+    return StaffProfile.objects.filter(display_name='Addai Christopher').select_related('user').first()
+
+
+def test_owner_found_without_flag_when_only_one_superuser():
+    get_user_model().objects.create_superuser('kofi-admin', 'k@example.org', 'pw-123456')
+    call_command('seed_staff')
+    assert owner_profile().user.username == 'kofi-admin'
+
+
+def test_owner_default_username_wins_over_other_superusers():
+    User = get_user_model()
+    User.objects.create_superuser('someone', 's@example.org', 'pw-123456')
+    User.objects.create_superuser('addai', 'a@example.org', 'pw-123456')
+    call_command('seed_staff')
+    assert owner_profile().user.username == 'addai'
+
+
+def test_owner_found_by_name():
+    User = get_user_model()
+    User.objects.create_superuser('one', '1@example.org', 'pw-123456')
+    User.objects.create_superuser('chris', 'c@example.org', 'pw-123456', first_name='Addai', last_name='Christopher')
+    call_command('seed_staff')
+    assert owner_profile().user.username == 'chris'
+
+
+def test_owner_skipped_with_warning_when_ambiguous(capsys):
+    User = get_user_model()
+    User.objects.create_superuser('one', '1@example.org', 'pw-123456')
+    User.objects.create_superuser('two', '2@example.org', 'pw-123456')
+    call_command('seed_staff')
+    assert owner_profile() is None
+    assert '--owner' in capsys.readouterr().err
