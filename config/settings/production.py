@@ -1,7 +1,7 @@
 from django.core.exceptions import ImproperlyConfigured
 from .base import *  # noqa: F403
 
-# Server choices from config/settings/local.py (linked from shared/local.py on alwaysdata).
+# Server choices from config/settings/local.py (git-ignored; created by deploy.sh setup).
 # Applied first so the safety rules below always run on the final values.
 globals().update(local_overrides())  # noqa: F405
 

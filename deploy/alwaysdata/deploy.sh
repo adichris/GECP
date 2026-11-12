@@ -1,158 +1,260 @@
 #!/usr/bin/env bash
-# Deploy GECP over plain SSH from your machine (Linux, macOS or Git Bash on Windows).
-# Uses the same SSH access you already have: no hosting account name or API key needed.
+# Deploy GECP in place. Run it on the server from the site directory:
 #
-#   deploy/alwaysdata/deploy.sh setup          first-time server layout, .env and local.py
-#   deploy/alwaysdata/deploy.sh deploy         build, upload, release, restart, health check
-#   deploy/alwaysdata/deploy.sh rollback [REL] switch back to the previous (or named) release
-#   deploy/alwaysdata/deploy.sh backup         database + media backup on the server
-#   deploy/alwaysdata/deploy.sh status         current release, history and disk usage
-#   deploy/alwaysdata/deploy.sh restart        run RESTART_COMMAND on the server
-#   deploy/alwaysdata/deploy.sh logs           tail the newest uWSGI log on the server
-#   deploy/alwaysdata/deploy.sh ssh            open a shell in the current release
+#   cd ~/www/gecp && bash deploy/alwaysdata/deploy.sh [command]
 #
-# Settings: deploy/alwaysdata/deploy.env (copy deploy.env.example), or just DEPLOY_HOST in the
-# environment: DEPLOY_HOST=user@host deploy/alwaysdata/deploy.sh deploy
-# Flags (environment): ALLOW_DIRTY=1 deploys uncommitted changes, SKIP_BUILD=1 reuses built assets,
-# SKIP_HEALTHCHECK=1 skips the HTTPS check.
+# Commands:
+#   deploy (default)            pull, install, build, check, back up + migrate, collectstatic, restart
+#   setup                       first run: create .env and config/settings/local.py from the examples
+#   backup [--with-media] [L]   database dump (and media archive) into BACKUP_DIR
+#   maintenance                 clearsessions + cleanup_community_limits (for a scheduled task)
+#   status                      deployed commit, recent deploys, pending migrations, disk usage
+#   check                       Django deployment checks only
+#
+# Optional settings: deploy/alwaysdata/deploy.env in the site directory (see deploy.env.example)
+# or environment variables. Flags: NO_PULL=1, SKIP_BUILD=1, ALLOW_DIRTY=1, SKIP_HEALTHCHECK=1.
 set -euo pipefail
-
-HERE="$(cd "$(dirname "$0")" && pwd)"
-PROJECT="$(cd "$HERE/../.." && pwd)"
-CONFIG="${DEPLOY_CONFIG:-$HERE/deploy.env}"
 
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33mwarning:\033[0m %s\n' "$*" >&2; }
 die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
-cli_host="${DEPLOY_HOST:-}"
-if [ -f "$CONFIG" ]; then
-  # shellcheck disable=SC1090
-  . "$CONFIG"
+SITE_DIR="$(pwd -P)"
+[ -f "$SITE_DIR/manage.py" ] && [ -d "$SITE_DIR/config/settings" ] \
+  || die "Run this from the GECP site directory (the folder with manage.py). Current: $SITE_DIR"
+cd "$SITE_DIR"
+
+if [ -f deploy/alwaysdata/deploy.env ]; then
+  # shellcheck disable=SC1091
+  . deploy/alwaysdata/deploy.env
 fi
-DEPLOY_HOST="${cli_host:-${DEPLOY_HOST:-}}"  # the environment wins over deploy.env
-[ -n "$DEPLOY_HOST" ] || die "Set DEPLOY_HOST (e.g. user@host or an ~/.ssh/config alias) in deploy.env or the environment."
-[ "$DEPLOY_HOST" != "user@ssh.example.net" ] || die "Replace the example DEPLOY_HOST in $CONFIG"
-# REMOTE_ROOT is a path on the server. A ~ in deploy.env was already expanded against the
-# LOCAL home when the file was sourced, so strip that back off and let the server expand $HOME.
-REMOTE_ROOT="${REMOTE_ROOT:-gecp}"
-REMOTE_ROOT="${REMOTE_ROOT#"$HOME"/}"
-REMOTE_ROOT="${REMOTE_ROOT#\~/}"
-case "$REMOTE_ROOT" in
-  /*) SCP_ROOT="$REMOTE_ROOT" ;;
-  *) SCP_ROOT="$REMOTE_ROOT"; REMOTE_ROOT="\$HOME/$REMOTE_ROOT" ;;
-esac
-PYTHON_VERSION="${PYTHON_VERSION:-3.12}"
-KEEP_RELEASES="${KEEP_RELEASES:-5}"
+export PYTHON_VERSION="${PYTHON_VERSION:-3.12}"  # alwaysdata picks the interpreter from this
+export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings.production}"
+VENV="$SITE_DIR/.venv"
+PY="$VENV/bin/python"
+BACKUP_DIR="${BACKUP_DIR:-$HOME/backups/$(basename "$SITE_DIR")}"  # outside the web root
 BACKUP_KEEP="${BACKUP_KEEP:-14}"
-TARGET="$DEPLOY_HOST"
-# Port, user and key come from your ~/.ssh/config, exactly as when you ssh in by hand.
-SSH_OPTS=(-o ServerAliveInterval=30)
-REMOTE_ENV="APP_ROOT=$REMOTE_ROOT PYTHON_VERSION=$PYTHON_VERSION KEEP_RELEASES=$KEEP_RELEASES BACKUP_KEEP=$BACKUP_KEEP"
+DEPLOY_LOG="$SITE_DIR/deploy.log"
+ENV_FILE="$SITE_DIR/.env"
+LOCAL_SETTINGS="$SITE_DIR/config/settings/local.py"
+EXAMPLES="$SITE_DIR/deploy/alwaysdata"
 
-remote() { ssh "${SSH_OPTS[@]}" "$TARGET" "$@"; }
-remote_script() { remote "$REMOTE_ENV bash $REMOTE_ROOT/current/deploy/alwaysdata/remote/$1 ${*:2}"; }
+manage() { "$PY" manage.py "$@"; }
+record() { printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" "$2" >> "$DEPLOY_LOG"; }
+commit() { git rev-parse --short HEAD 2>/dev/null || echo no-git; }
+sha_of() { cat "$@" 2>/dev/null | sha256sum | cut -c1-16; }
 
-restart_site() {
-  if [ -z "${RESTART_COMMAND:-}" ]; then
-    warn "Restart the Python site now so it loads the new release (hosting panel > Sites > restart),"
-    warn "or set RESTART_COMMAND in deploy.env to a command that restarts it on the server."
-    return 0
+# One deploy at a time.
+lock() {
+  command -v flock >/dev/null || return 0
+  exec 9>"$SITE_DIR/.deploy.lock"
+  flock -n 9 || die "Another deploy is running in $SITE_DIR"
+}
+
+# --------------------------------------------------------------------------------------------
+setup_config() {
+  local created=0
+  umask 077
+  if [ ! -f "$ENV_FILE" ]; then
+    log "Creating .env from env.example with a fresh SECRET_KEY"
+    local secret
+    secret="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
+    sed "s|^SECRET_KEY=.*|SECRET_KEY=$secret|" "$EXAMPLES/env.example" > "$ENV_FILE"
+    created=1
   fi
-  log "Restarting: $RESTART_COMMAND"
-  remote "$RESTART_COMMAND" || warn "RESTART_COMMAND failed. Restart the site from the hosting panel."
+  if [ ! -f "$LOCAL_SETTINGS" ]; then
+    log "Creating config/settings/local.py from local.py.example"
+    cp "$EXAMPLES/local.py.example" "$LOCAL_SETTINGS"
+    created=1
+  fi
+  chmod 600 "$ENV_FILE" "$LOCAL_SETTINGS"
+  if [ "$created" = 1 ]; then
+    cat <<EOF
+
+Edit the settings, then run the deploy again:
+  $ENV_FILE                  secrets: domain/hosts, DATABASE_URL, SMTP
+  $LOCAL_SETTINGS   server choices (may also hold DATABASES / EMAIL_*)
+  bash deploy/alwaysdata/deploy.sh
+EOF
+    exit 0
+  fi
+  log ".env and local.py already exist; nothing to create"
+}
+
+require_config() {
+  [ -f "$ENV_FILE" ] || [ -f "$LOCAL_SETTINGS" ] || { setup_config; }
+  local unfinished
+  unfinished="$( { grep -E '^[[:space:]]*[A-Za-z_]+=.*(REPLACE_WITH|YOUR_DOMAIN|DB_USER:URL_ENCODED|YOUR_SMTP)' "$ENV_FILE" 2>/dev/null || true; } \
+    | cut -d= -f1 | tr -d ' ' | paste -sd, -)"
+  if [ -n "$unfinished" ]; then
+    die ".env still has example values for: $unfinished. Fill them in, or delete/comment out (#) the lines you set in local.py instead."
+  fi
+}
+
+pull() {
+  [ "${NO_PULL:-0}" = 1 ] && { log "Skipping git pull (NO_PULL=1)"; return 0; }
+  git rev-parse --git-dir >/dev/null 2>&1 || { log "Not a git checkout; deploying the files as they are"; return 0; }
+  git rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1 || { log "No upstream branch; deploying the checkout as it is"; return 0; }
+  if [ "${ALLOW_DIRTY:-0}" != 1 ] && ! { git diff --quiet && git diff --cached --quiet; }; then
+    die "Tracked files were edited on the server. Commit/stash them, or rerun with ALLOW_DIRTY=1."
+  fi
+  log "Pulling $(git rev-parse --abbrev-ref '@{upstream}')"
+  git pull --ff-only
+}
+
+python_env() {
+  if [ ! -x "$PY" ]; then
+    log "Creating virtualenv .venv (Python $PYTHON_VERSION)"
+    python -m venv "$VENV"
+    "$PY" -m pip install --quiet --upgrade pip
+  fi
+  local want have
+  want="$(printf '%s\n' "$PYTHON_VERSION" | cat - requirements.txt | sha256sum | cut -c1-16)"
+  have="$(cat "$VENV/.requirements.sha" 2>/dev/null || true)"
+  if [ "$want" != "$have" ]; then
+    log "Installing Python requirements"
+    "$PY" -m pip install --quiet -r requirements.txt
+    printf '%s\n' "$want" > "$VENV/.requirements.sha"
+  else
+    log "Python requirements unchanged"
+  fi
+}
+
+frontend() {
+  local built=(static/css/app.css static/js/htmx.min.js static/js/alpine.min.js static/fonts)
+  if [ "${SKIP_BUILD:-0}" != 1 ] && command -v npm >/dev/null; then
+    local want have
+    want="$(sha_of package.json package-lock.json)"
+    have="$(cat node_modules/.deploy.sha 2>/dev/null || true)"
+    if [ ! -d node_modules ] || [ "$want" != "$have" ]; then
+      log "Installing frontend packages"
+      npm ci --no-audit --no-fund --loglevel=error
+      printf '%s\n' "$want" > node_modules/.deploy.sha
+    fi
+    log "Building frontend assets"
+    npm run build --silent
+  elif [ "${SKIP_BUILD:-0}" != 1 ]; then
+    warn "npm not found: using the built assets already in static/"
+  fi
+  for asset in "${built[@]}"; do
+    [ -e "$asset" ] || die "Missing $asset. Install Node.js on the server or upload the built static/ files."
+  done
+}
+
+# Export libpq variables for the configured database (works whether it is set in .env or local.py).
+db_env() {
+  eval "$("$PY" - <<'PY'
+import shlex
+import django
+django.setup()
+from django.conf import settings
+db = settings.DATABASES['default']
+if db['ENGINE'] != 'django.db.backends.postgresql':
+    raise SystemExit('Backups need PostgreSQL; the configured engine is ' + db['ENGINE'])
+for key, var in (('NAME', 'PGDATABASE'), ('USER', 'PGUSER'), ('PASSWORD', 'PGPASSWORD'),
+                 ('HOST', 'PGHOST'), ('PORT', 'PGPORT')):
+    value = str(db.get(key) or '')
+    if value:
+        print(f'export {var}={shlex.quote(value)}')
+PY
+)"
+}
+
+backup() {
+  local with_media=0 label
+  if [ "${1:-}" = "--with-media" ]; then with_media=1; shift; fi
+  label="${1:-manual}"
+  command -v pg_dump >/dev/null || die "pg_dump is not available in this shell"
+  mkdir -p "$BACKUP_DIR"; chmod 700 "$BACKUP_DIR"
+  local stamp dump
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  dump="$BACKUP_DIR/db-$stamp-$label.dump"
+  log "Backing up the database to $dump"
+  (umask 077; db_env; pg_dump --format=custom --no-owner --file="$dump")
+  [ -s "$dump" ] || die "Backup file is empty: $dump"
+  if [ "$with_media" = 1 ] && [ -d media ]; then
+    log "Archiving media to $BACKUP_DIR/media-$stamp-$label.tar.gz"
+    (umask 077; tar -czf "$BACKUP_DIR/media-$stamp-$label.tar.gz" media)
+  fi
+  local pattern
+  for pattern in 'db-*.dump' 'media-*.tar.gz'; do
+    find "$BACKUP_DIR" -maxdepth 1 -name "$pattern" -printf '%T@ %p\n' 2>/dev/null \
+      | sort -rn | tail -n +"$((BACKUP_KEEP + 1))" | cut -d' ' -f2- | xargs -r rm -f --
+  done
+  log "Backup complete ($(du -h "$dump" | cut -f1))"
+}
+
+restart() {
+  if [ -n "${RESTART_COMMAND:-}" ]; then
+    log "Restarting: $RESTART_COMMAND"
+    bash -c "$RESTART_COMMAND" || warn "RESTART_COMMAND failed. Restart the site from the hosting panel."
+  else
+    warn "Restart the Python site now so it loads the new code (hosting panel > Sites > restart),"
+    warn "or set RESTART_COMMAND in deploy/alwaysdata/deploy.env."
+  fi
 }
 
 health_check() {
-  [ "${SKIP_HEALTHCHECK:-0}" = 1 ] && return 0
-  [ -n "${DOMAIN:-}" ] && [ "$DOMAIN" != YOUR_DOMAIN ] || { warn "DOMAIN not set; skipping health check"; return 0; }
+  if [ "${SKIP_HEALTHCHECK:-0}" = 1 ] || [ -z "${DOMAIN:-}" ]; then return 0; fi
   local url="https://$DOMAIN/healthz/" attempt
   log "Checking $url"
   for attempt in 1 2 3 4 5 6; do
-    if curl -fsS --max-time 10 "$url" | grep -q '"ok"'; then
-      log "Health check passed"
-      return 0
-    fi
+    curl -fsS --max-time 10 "$url" 2>/dev/null | grep -q '"ok"' && { log "Health check passed"; return 0; }
     sleep 5
   done
-  die "Health check failed for $url. Inspect: deploy.sh logs   Roll back: deploy.sh rollback"
+  warn "Health check failed for $url after $attempt attempts. Check the site log."
+  return 1
 }
 
-build_bundle() {
-  local bundle="$1"
-  cd "$PROJECT"
-  if [ "${ALLOW_DIRTY:-0}" != 1 ] && [ -n "$(git status --porcelain)" ]; then
-    die "Uncommitted changes. Commit them, or rerun with ALLOW_DIRTY=1."
+deploy() {
+  lock
+  require_config
+  local before
+  before="$(commit)"
+  pull
+  python_env
+  frontend
+  log "Running Django deployment checks"
+  manage check --deploy
+  if manage migrate --check >/dev/null 2>&1; then
+    log "No pending migrations"
+  else
+    log "Pending migrations: backing up the database first"
+    backup "pre-$(commit)"
+    log "Applying migrations"
+    manage migrate --noinput
   fi
-  if [ "${SKIP_BUILD:-0}" != 1 ]; then
-    log "Building frontend assets"
-    npm ci --no-audit --no-fund --loglevel=error
-    npm run build --silent
+  log "Collecting static files"
+  manage collectstatic --noinput --verbosity 0
+  record deploy "$(commit) (previous: $before)"
+  restart
+  health_check || true
+  log "Deployed $(commit) from $SITE_DIR"
+}
+
+status() {
+  echo "site:     $SITE_DIR"
+  echo "commit:   $(commit)$(git log -1 --format=' - %s (%cr)' 2>/dev/null || true)"
+  echo "settings: $DJANGO_SETTINGS_MODULE"
+  echo
+  echo "recent deploys:"; tail -n 10 "$DEPLOY_LOG" 2>/dev/null || echo "  none yet"
+  echo
+  if [ -x "$PY" ]; then
+    if manage migrate --check >/dev/null 2>&1; then echo "migrations: up to date"; else echo "migrations: PENDING"; fi
   fi
-  for built in static/css/app.css static/js/htmx.min.js static/js/alpine.min.js static/fonts; do
-    [ -e "$built" ] || die "Missing built asset $built. Run npm run build."
-  done
-  log "Packing release bundle"
-  # Tracked and new (non-ignored) files that exist, plus the git-ignored build output.
-  {
-    git ls-files -z --cached --others --exclude-standard | while IFS= read -r -d '' file; do
-      [ -e "$file" ] && printf '%s\0' "$file"
-    done
-    printf '%s\0' static/css static/js/htmx.min.js static/js/alpine.min.js static/fonts
-  } | tar --null -T - -czf "$bundle"
+  du -sh media "$BACKUP_DIR" 2>/dev/null || true
 }
 
-upload_and_extract() {
-  local bundle="$1" release="$2"
-  log "Uploading $(du -h "$bundle" | cut -f1) to $DEPLOY_HOST"
-  remote "mkdir -p $REMOTE_ROOT/incoming $REMOTE_ROOT/releases"
-  scp -q "$bundle" "$TARGET:$SCP_ROOT/incoming/$release.tar.gz"
-  remote "set -e; mkdir $REMOTE_ROOT/releases/$release; tar -xzf $REMOTE_ROOT/incoming/$release.tar.gz -C $REMOTE_ROOT/releases/$release; rm -f $REMOTE_ROOT/incoming/$release.tar.gz"
-}
-
-release_name() {
-  local sha
-  sha="$(git -C "$PROJECT" rev-parse --short HEAD 2>/dev/null || echo nogit)"
-  [ -n "$(git -C "$PROJECT" status --porcelain 2>/dev/null)" ] && sha="$sha-dirty"
-  printf '%s-%s' "$(date -u +%Y%m%d%H%M%S)" "$sha"
-}
-
-cmd="${1:-help}"
+cmd="${1:-deploy}"
 case "$cmd" in
-  setup)
-    tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-    log "Uploading setup scripts"
-    tar -czf "$tmp/setup.tar.gz" -C "$PROJECT" deploy/alwaysdata
-    remote "mkdir -p $REMOTE_ROOT/incoming"
-    scp -q "$tmp/setup.tar.gz" "$TARGET:$SCP_ROOT/incoming/setup.tar.gz"
-    remote "set -e; d=\$(mktemp -d); tar -xzf $REMOTE_ROOT/incoming/setup.tar.gz -C \$d; $REMOTE_ENV bash \$d/deploy/alwaysdata/remote/setup.sh \$d; rm -rf \$d $REMOTE_ROOT/incoming/setup.tar.gz"
-    ;;
-  deploy)
-    release="$(release_name)"
-    tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-    build_bundle "$tmp/release.tar.gz"
-    upload_and_extract "$tmp/release.tar.gz" "$release"
-    log "Activating release $release"
-    remote "$REMOTE_ENV bash $REMOTE_ROOT/releases/$release/deploy/alwaysdata/remote/release.sh $REMOTE_ROOT/releases/$release"
-    restart_site
-    health_check
-    log "Deployed $release"
-    ;;
-  rollback)
-    remote_script rollback.sh "${2:-}"
-    restart_site
-    health_check
-    ;;
-  backup) remote_script backup.sh --with-media manual ;;
-  restart) restart_site ;;
-  status)
-    remote "echo \"current: \$(readlink $REMOTE_ROOT/current 2>/dev/null || echo none)\"; echo; echo releases:; ls -1t $REMOTE_ROOT/releases 2>/dev/null; echo; echo recent deploys:; tail -n 10 $REMOTE_ROOT/deploy.log 2>/dev/null; echo; du -sh $REMOTE_ROOT/releases $REMOTE_ROOT/venvs $REMOTE_ROOT/shared/media $REMOTE_ROOT/shared/backups 2>/dev/null"
-    ;;
-  logs)
-    # LOG_FILE in deploy.env picks a specific file; otherwise the newest uWSGI log (alwaysdata layout).
-    remote "f=\"${LOG_FILE:-}\"; [ -n \"\$f\" ] || f=\$(ls -1t ~/admin/logs/uwsgi/*.log 2>/dev/null | head -n 1); [ -n \"\$f\" ] || { echo 'No uWSGI log found; set LOG_FILE in deploy.env' >&2; exit 1; }; echo \"==> \$f\"; tail -n ${LINES:-100} \"\$f\""
-    ;;
-  ssh) ssh -t "${SSH_OPTS[@]}" "$TARGET" "cd $REMOTE_ROOT/current && exec \$SHELL -l" ;;
-  help|-h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//' ;;
-  *) die "Unknown command: $cmd (try: deploy.sh help)" ;;
+  deploy) deploy ;;
+  setup) setup_config ;;
+  backup) shift; [ -x "$PY" ] || die "No .venv yet: run a deploy first"; backup "$@" ;;
+  maintenance)
+    log "Clearing expired sessions"; manage clearsessions
+    log "Pruning expired community rate limits"; manage cleanup_community_limits ;;
+  status) status ;;
+  check) manage check --deploy ;;
+  help|-h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *) die "Unknown command: $cmd (try: bash deploy/alwaysdata/deploy.sh help)" ;;
 esac

@@ -1,7 +1,9 @@
-"""Production choices for alwaysdata. deploy.sh setup copies this to ~/gecp/shared/local.py;
-every release links it in as config/settings/local.py. Edit it on the server, then restart the site.
+"""Server settings. `deploy.sh setup` copies this to config/settings/local.py in the site
+directory (git-ignored, chmod 600). Edit it on the server, then restart the site.
 
-Plain Python: values are not quoted strings from a .env file. Secrets stay in shared/.env.
+Plain Python, loaded after .env, so it can also hold the database and email server, e.g.
+DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql', 'NAME': ..., 'USER': ...,
+'PASSWORD': ..., 'HOST': ..., 'PORT': '5432'}} or EMAIL_HOST = ... .
 Production safety rules (DEBUG off, HTTPS, PostgreSQL, ALLOWED_HOSTS) still apply after this file.
 """
 

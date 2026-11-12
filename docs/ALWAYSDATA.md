@@ -1,117 +1,122 @@
 # Deploy GECP to alwaysdata
 
-Scripted deploys live in `deploy/alwaysdata/`. You run `deploy.sh` on your machine (Linux, macOS or Git Bash on Windows). It builds the frontend, uploads a release over SSH and activates it with the server-side scripts in `deploy/alwaysdata/remote/`.
+Deploys run **on the server, in the site directory**. Connect over SSH, `cd` into the folder that holds `manage.py`, and run:
 
-Replace ACCOUNT (your hosting username, as in your home directory path) and YOUR_DOMAIN below. Use a custom domain for the programme subdomain network, and confirm DNS and certificate support before relying on nested subdomains of an alwaysdata.net address.
-
-## Server layout
-
-```
-~/gecp/
-  current -> releases/20261112093000-ab12cd3   the live release (atomic symlink)
-  releases/<UTC timestamp>-<git sha>/           last KEEP_RELEASES releases
-  venvs/<hash>/                                 one virtualenv per Python version + requirements.txt
-  shared/.env                                   secrets and infrastructure (chmod 600, never in git)
-  shared/local.py                               app choices, linked in as config/settings/local.py
-  shared/media/                                 uploads, linked into every release
-  shared/backups/                               pg_dump files and media archives (chmod 700)
-  deploy.log                                    deploy and rollback history
+```sh
+bash deploy/alwaysdata/deploy.sh
 ```
 
-A release whose `requirements.txt` is unchanged reuses the existing virtualenv, so most deploys take seconds.
+The script works on the current directory. It needs no hosting account name, API key or upload step. `SITE` below means that directory, for example `/home/ACCOUNT/www/gecp`.
+
+## What lives in the site directory
+
+```
+SITE/
+  manage.py, apps/, config/ ...      the code (a git checkout, or files you uploaded)
+  .env                               secrets and infrastructure (chmod 600, git-ignored)
+  config/settings/local.py           server settings: database, email, app choices (chmod 600, git-ignored)
+  .venv/                             virtualenv, rebuilt only when requirements.txt changes
+  media/                             uploads
+  staticfiles/                       collected static files
+  deploy.log                         one line per deploy
+~/backups/<site directory name>/     database dumps and media archives (outside the web root)
+```
 
 ## 1. Prepare hosting (once)
 
-1. In the alwaysdata panel, create a PostgreSQL database and a user with access to it. Note the real names, which may carry an account prefix. The host is `postgresql-ACCOUNT.alwaysdata.net`.
-2. Under Environment > Python, select Python 3.12.
-3. Make sure you can `ssh` into the server from your machine. The deploy uses exactly that access.
+1. Create a PostgreSQL database and a user with access to it. Note the real names, which may carry an account prefix.
+2. Select Python 3.12 under Environment > Python.
+3. Put the code in the site directory. Either `git clone` it there (deploys will then `git pull`), or upload the files.
 
-## 2. Configure your machine (once)
+The frontend build needs Node.js on the server. If `npm` isn't available, upload the built `static/css`, `static/js` and `static/fonts` folders along with the code, and the script uses them as they are.
 
-```sh
-cp deploy/alwaysdata/deploy.env.example deploy/alwaysdata/deploy.env
-```
-
-Set `DEPLOY_HOST` to what you already type after `ssh`: a `user@host` pair, or a Host alias from `~/.ssh/config`. Any custom port or key goes in `~/.ssh/config`. No hosting account name or API key is needed. `deploy.env` is git-ignored and never uploaded.
-
-You can also skip the file for a one-off: `DEPLOY_HOST=user@host deploy/alwaysdata/deploy.sh deploy`.
-
-Optional settings:
-- `DOMAIN` turns on the HTTPS health check after each deploy.
-- `RESTART_COMMAND` is a command run on the server to restart the app. If it's empty, deploy.sh reminds you to restart the site in the panel.
-- `LOG_FILE` sets the log that `deploy.sh logs` shows. The default is the newest uWSGI log.
-
-## 3. Create the server layout and .env
+## 2. First run: create the settings
 
 ```sh
-deploy/alwaysdata/deploy.sh setup
+cd SITE
+bash deploy/alwaysdata/deploy.sh setup
 ```
 
-This creates `~/gecp` and two settings files. Re-running it is safe: existing files are never overwritten.
-- `shared/.env`, from `deploy/alwaysdata/env.example`, with a freshly generated `SECRET_KEY`.
-- `shared/local.py`, from `deploy/alwaysdata/local.py.example`.
+This creates two files and never overwrites existing ones:
 
-Then edit `~/gecp/shared/.env` on the server (`ssh ...` then `nano ~/gecp/shared/.env`):
+- **`.env`**, from `deploy/alwaysdata/env.example`, with a fresh `SECRET_KEY`. Set:
+  - `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` and `ADMIN_BASE_URL` for your domain.
+  - `DATABASE_URL` (URL-encode the username and password).
+  - The SMTP settings and `DEFAULT_FROM_EMAIL`.
 
-- `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` and `ADMIN_BASE_URL` for your domain.
-- `DATABASE_URL`, with the username and password URL-encoded.
-- The SMTP settings and `DEFAULT_FROM_EMAIL`.
+  Write plain `KEY=value` lines, with no quotes and no `export`.
+- **`config/settings/local.py`**, from `deploy/alwaysdata/local.py.example`. This is plain Python that loads after `.env`, so it can override anything. Put the database (`DATABASES = {...}`) and email server (`EMAIL_*`) here instead of `.env` if you prefer. App choices go here too: `SERVE_MEDIA` and `SUBMISSION_NOTIFY_EMAILS`.
 
-Write plain `KEY=value` lines: no quotes and no `export`.
+The production safety rules (DEBUG off, HTTPS, PostgreSQL, a strong `SECRET_KEY`, explicit hosts) are checked after both files load. Never commit either file or send its contents in chat.
 
-App behaviour lives in `~/gecp/shared/local.py`, which is plain Python, for example `SUBMISSION_NOTIFY_EMAILS = ['team@example.org']` or `SERVE_MEDIA = True`. Every release links it in as `config/settings/local.py`. It loads after `.env`, so it can override any setting. The production safety rules (DEBUG off, HTTPS, PostgreSQL, explicit hosts) are checked after it. Restart the site after editing either file. Releases refuse to activate while the file still contains placeholders. Never send secrets in chat or commit `.env`.
-
-## 4. Deploy
+## 3. Deploy
 
 ```sh
-deploy/alwaysdata/deploy.sh deploy
+cd SITE
+bash deploy/alwaysdata/deploy.sh
 ```
 
-The script runs these steps in order:
+Steps, in order:
 
-1. Refuses to run with uncommitted changes (`ALLOW_DIRTY=1` overrides this).
-2. Runs `npm ci && npm run build` (`SKIP_BUILD=1` reuses the existing build).
-3. Packs the tracked files plus the built CSS, JS and fonts. Local `.env`, SQLite, `node_modules` and virtualenvs are never included.
-4. Uploads the bundle and extracts it into `releases/<timestamp>-<sha>`.
-5. On the server:
-   - Links `shared/.env` and `shared/media` into the release.
-   - Creates or reuses the virtualenv.
-   - Runs `check --deploy` and `collectstatic`.
-   - If migrations are pending, takes a `pg_dump` backup and then runs `migrate`.
-   - Switches `current`.
-   - Prunes old releases and unused virtualenvs.
-6. Runs `RESTART_COMMAND` on the server, or reminds you to restart the site in the panel.
-7. Checks `https://DOMAIN/healthz/` (`SKIP_HEALTHCHECK=1` skips this).
+1. **Pull:** runs `git pull --ff-only` if the directory is a git checkout with an upstream branch. It refuses if tracked files were edited on the server (`ALLOW_DIRTY=1` overrides this; `NO_PULL=1` skips the pull).
+2. **Python:** creates `.venv` if missing. Requirements are installed only when `requirements.txt` or `PYTHON_VERSION` changed.
+3. **Frontend:** runs `npm ci` (only when the package files changed) and `npm run build`. `SKIP_BUILD=1` skips the build.
+4. **Checks:** runs `manage.py check --deploy`.
+5. **Migrations:** if any are pending, dumps the database to `~/backups/...` first, then migrates.
+6. **Static files:** runs `collectstatic`.
+7. **Record:** writes the commit to `deploy.log`.
+8. **Restart:** runs `RESTART_COMMAND`, or reminds you to restart the site in the panel. **The new code is only live after a restart.**
+9. **Health check:** checks `https://DOMAIN/healthz/` when `DOMAIN` is set.
 
-Any failure before the switch leaves the live release untouched.
+Optional settings go in `deploy/alwaysdata/deploy.env` in the site directory (copy `deploy.env.example`), or in environment variables:
+
+| Setting | Purpose |
+| --- | --- |
+| `PYTHON_VERSION` | Python version on the server (default 3.12) |
+| `DOMAIN` | Turns on the HTTPS health check after each deploy |
+| `RESTART_COMMAND` | Command that restarts the app; empty means a reminder |
+| `BACKUP_DIR`, `BACKUP_KEEP` | Where backups go (default `~/backups/<site directory name>`) and how many of each kind to keep (default 14) |
+
+Only one deploy can run at a time.
 
 ### First deploy: initialise data deliberately
 
 Only for a NEW EMPTY database, seed once after the first deploy:
 
 ```sh
-cd ~/gecp/current
+cd SITE
 .venv/bin/python scripts/seed_all.py --settings config.settings.production --domain YOUR_DOMAIN --port 443
 DJANGO_SETTINGS_MODULE=config.settings.production .venv/bin/python manage.py createsuperuser
+DJANGO_SETTINGS_MODULE=config.settings.production .venv/bin/python manage.py seed_staff --owner YOUR_USERNAME
 ```
 
-Seeding reproduces the bundled content. It does not bring over local editorial changes, uploaded media, accounts or community activity. Never seed over a restored database. For restored content, update the existing Wagtail Sites to the final hostnames and port 443, keeping their root pages. Never re-seed with a different hostname as a substitute for a domain migration.
+Seeding reproduces the bundled content. It does not bring over local editorial changes, uploaded media, accounts or community activity. Never seed over a restored database. For restored content, update the existing Wagtail Sites to the final hostnames and port 443, keeping their root pages.
 
-## 5. Configure the Python site (once)
+### Rolling back
+
+Deploys are in place, so a rollback means checking out the earlier commit and deploying it without pulling:
+
+```sh
+tail deploy.log                      # find the previous commit
+git checkout <commit>
+NO_PULL=1 bash deploy/alwaysdata/deploy.sh
+```
+
+Migrations are not reversed. If the bad deploy changed the schema, restore the `db-...-pre-<commit>.dump` it took first (see Backups below). Return to the branch with `git checkout main` before the next normal deploy.
+
+## 4. Configure the Python site (once)
 
 Under Web > Sites > Add a site:
 
 | Field | Value |
 | --- | --- |
 | Type | Python WSGI |
-| Application path | /home/ACCOUNT/gecp/current/config/wsgi.py |
-| Working directory | /home/ACCOUNT/gecp/current |
-| Virtualenv | /home/ACCOUNT/gecp/current/.venv |
-| Python | 3.12 (the same as `PYTHON_VERSION` in deploy.env) |
+| Application path | SITE/config/wsgi.py |
+| Working directory | SITE |
+| Virtualenv | SITE/.venv |
+| Python | 3.12 (the same as `PYTHON_VERSION`) |
 | Environment variable | DJANGO_SETTINGS_MODULE=config.settings.production |
 | Addresses | YOUR_DOMAIN and every programme hostname below |
-
-The paths go through the `current` symlink, so they never change between releases.
 
 **Programme addresses.** Add gccs, pec, wwi, rengtech, spin, gsevs, tradestart, eraid, evm, dricd and tkrd, each followed by `.YOUR_DOMAIN`. All of them use ONE Python application. Register every address both in Web > Sites and in DNS. If you use www, redirect it to the canonical foundation hostname: the application rejects unregistered hosts.
 
@@ -120,61 +125,60 @@ The paths go through the `current` symlink, so they never change between release
 - Keep the platform HTTP cache disabled for this dynamic app.
 - HSTS includes subdomains, so confirm that every subdomain serves HTTPS before launch.
 
-## 6. Media files (images and staff photos)
+## 5. Media files (images and staff photos)
 
-WhiteNoise serves `/static/`. Uploads live in `~/gecp/shared/media`, which every release links in as `media/`.
+WhiteNoise serves `/static/`. Uploads live in `SITE/media`.
 
-**Default: no setup needed.** With `SERVE_MEDIA = True` in `shared/local.py` (the default), the app serves public images itself.
+**Default: no setup needed.** With `SERVE_MEDIA = True` (the default), the app serves public images itself.
 - **What it serves:** `/media/images/` (Wagtail renditions), `/media/staff/photos/` and `/media/staff/portfolio/`.
 - **What is refused (404):** everything else under `/media/`, including `media/documents/` and `media/original_images/`, and any non-image file.
 - **Headers:** responses are cached for 30 days (`MEDIA_CACHE_SECONDS`) and sent with `nosniff`.
 
 Wagtail documents always go through the permission-checked `/documents/` routes.
 
-**Optional speed-up for busy sites:** let alwaysdata serve the images directly. Create a Static files site:
+**Optional speed-up:** let alwaysdata serve the images directly. Create Static files sites:
 - **Addresses:** `YOUR_DOMAIN/media/images/` and `YOUR_DOMAIN/media/staff/`, plus the same two paths on every programme hostname.
-- **Root directory:** `/home/ACCOUNT/gecp/shared/media/images` or `/home/ACCOUNT/gecp/shared/media/staff`, with one site per path.
+- **Root directories:** `SITE/media/images` and `SITE/media/staff`, one site per path.
 - **Options:** enable Trim path and HTTPS.
 
-Requests for those paths then never reach Python. You can keep `SERVE_MEDIA = True` as a fallback.
+Never map `/media/` as a whole, `/media/documents/` or `/media/original_images/`. Never point a static site at the site directory itself: it holds `.env` and `local.py`.
 
-Never map `/media/` as a whole, `/media/documents/` or `/media/original_images/`. Never point a static site at a release directory or at `shared/.env`.
+## 6. Backups and scheduled tasks
 
-Verify a rendition and a staff photo URL in the browser after deploying.
+```sh
+bash deploy/alwaysdata/deploy.sh backup --with-media     # manual backup
+```
 
-## 7. Scheduled tasks
+Backups are custom-format `pg_dump` files plus an optional media archive, written to `BACKUP_DIR`. The database connection comes from Django's own settings, so it works whether the database is in `.env` or `local.py`. The newest `BACKUP_KEEP` of each kind are kept.
 
-Under Advanced > Scheduled tasks, add two jobs that run as the account:
+Under Advanced > Scheduled tasks, add:
 
 | Schedule | Command |
 | --- | --- |
-| Daily, 03:00 | `bash ~/gecp/current/deploy/alwaysdata/remote/maintenance.sh` (clearsessions and cleanup_community_limits) |
-| Daily, 03:30 | `bash ~/gecp/current/deploy/alwaysdata/remote/backup.sh --with-media nightly` |
+| Daily, 03:00 | `cd SITE && bash deploy/alwaysdata/deploy.sh maintenance` |
+| Daily, 03:30 | `cd SITE && bash deploy/alwaysdata/deploy.sh backup --with-media nightly` |
 
-Backups keep the newest `BACKUP_KEEP` (default 14) of each kind. Copy them off the server regularly, and test a restore:
+Copy backups off the server regularly, and test a restore:
 
 ```sh
-pg_restore --clean --no-owner --dbname="$DATABASE_URL" ~/gecp/shared/backups/db-....dump
+pg_restore --clean --no-owner --dbname=DB_NAME --host=HOST --username=USER ~/backups/gecp/db-....dump
 ```
 
-## Day-to-day commands
+## Day-to-day commands (run in SITE)
 
 | Command | What it does |
 | --- | --- |
-| `deploy.sh deploy` | Build, upload, migrate (with a backup first), switch, restart, health check |
-| `deploy.sh rollback [RELEASE]` | Point `current` at the previous release (or a named one) and restart |
-| `deploy.sh status` | Current release, releases on disk, recent history, disk usage |
-| `deploy.sh backup` | Immediate database and media backup |
-| `deploy.sh restart` | Run `RESTART_COMMAND` on the server |
-| `deploy.sh logs` | Tail the newest uWSGI log, or `LOG_FILE` (`LINES=300` for more) |
-| `deploy.sh ssh` | Open a shell on the server in the current release |
-
-**Rollback is code only.** Migrations are not reversed. If the bad release changed the schema, check that the older code still works with it. Otherwise, restore the `db-...-pre-<release>.dump` that was taken right before that release migrated.
+| `bash deploy/alwaysdata/deploy.sh` | Pull, install, build, check, back up and migrate, collectstatic, restart |
+| `bash deploy/alwaysdata/deploy.sh status` | Deployed commit, recent deploys, pending migrations, disk usage |
+| `bash deploy/alwaysdata/deploy.sh check` | Django deployment checks only |
+| `bash deploy/alwaysdata/deploy.sh backup [--with-media] [label]` | Immediate backup |
+| `bash deploy/alwaysdata/deploy.sh maintenance` | Clear expired sessions and community rate limits |
+| `bash deploy/alwaysdata/deploy.sh setup` | Create `.env` and `local.py` if missing |
 
 ## Verify before announcing the launch
 
 Check the following:
-- Foundation and programme pages, CSS, JS, fonts and images.
+- Foundation and programme pages, CSS, JS, fonts and images, including staff photos.
 - Global and per-site search.
 - Admin login, forms, guest posting and moderation.
 - Password recovery, using a real test mailbox, before you enable public registration.
@@ -185,12 +189,13 @@ Check that client IP handling sees distinct visitors. If REMOTE_ADDR is the real
 
 ## Troubleshooting
 
-- **Python errors:** run `deploy.sh logs`.
+- **Python errors:** read the site's log in `~/admin/logs/uwsgi/`.
 - **Host not configured (404):** the Wagtail Site hostname or port doesn't match the request.
-- **Redirect loop:** the proxy HTTPS setting is missing.
-- **Missing images:** check `SERVE_MEDIA` in `shared/local.py`. If you use static sites, check that they point at `shared/media/images` and `shared/media/staff`. Then check that the file exists under `~/gecp/shared/media`.
-- **500 after a deploy:** read the log, then `deploy.sh rollback`. Never enable DEBUG publicly.
-- **"still contains placeholders":** finish editing `~/gecp/shared/.env`.
+- **Redirect loop:** `TRUST_PROXY_SSL_HEADER` is missing.
+- **Missing images:** check `SERVE_MEDIA` in `local.py`, any static sites' roots, and that the file exists under `SITE/media`.
+- **Old code still served:** restart the site.
+- **500 after a deploy:** read the log, then roll back. Never enable DEBUG publicly.
+- **".env still contains placeholders":** finish editing `.env`.
 
 ## Official references
 

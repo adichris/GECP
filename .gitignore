@@ -18,3 +18,7 @@ deploy/alwaysdata/deploy.env
 
 # Per-machine settings (see config/settings/local.py.example)
 config/settings/local.py
+
+# Server deploy state (deploy/alwaysdata/deploy.sh)
+deploy.log
+.deploy.lock

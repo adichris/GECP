@@ -148,7 +148,7 @@ Tests use an isolated SQLite database by default. For the PostgreSQL test path, 
 
 ### Local settings
 
-Keep your machine's own settings in `config/settings/local.py`, such as your local database (`DATABASES`) and email server (`EMAIL_*`). Copy `config/settings/local.py.example` to start. The file is git-ignored and never deployed. App options such as `SERVE_MEDIA`, `MEDIA_CACHE_SECONDS`, `SUBMISSION_EMAILS_ENABLED` and `SUBMISSION_NOTIFY_EMAILS` go there too, and any other setting can be overridden. It loads last in the dev and production settings. The test and CI settings ignore it so results are the same on every machine. On alwaysdata, `deploy.sh setup` creates `~/gecp/shared/local.py`, and every release links it in.
+Keep your machine's own settings in `config/settings/local.py`, such as your local database (`DATABASES`) and email server (`EMAIL_*`). Copy `config/settings/local.py.example` to start. The file is git-ignored and never deployed. App options such as `SERVE_MEDIA`, `MEDIA_CACHE_SECONDS`, `SUBMISSION_EMAILS_ENABLED` and `SUBMISSION_NOTIFY_EMAILS` go there too, and any other setting can be overridden. It loads last in the dev and production settings. The test and CI settings ignore it so results are the same on every machine. On the server, `deploy.sh setup` creates the server's own `config/settings/local.py`.
 
 ### Team directory sample data
 
@@ -156,7 +156,7 @@ Keep your machine's own settings in `config/settings/local.py`, such as your loc
 
 ## Production deployment
 
-**alwaysdata:** `deploy/alwaysdata/deploy.sh` runs scripted, atomic releases. It handles setup, deploy, rollback, backups and status. See `docs/ALWAYSDATA.md`. The Docker steps below are for a self-managed host.
+**alwaysdata:** run `bash deploy/alwaysdata/deploy.sh` on the server from the site directory. It deploys in place and handles setup, backups, maintenance and status. See `docs/ALWAYSDATA.md`. The Docker steps below are for a self-managed host.
 
 1. Provision PostgreSQL, persistent media storage, DNS and HTTPS for the apex domain and programme subdomains. This repository does not provision a cloud account or certificates.
 2. Set `.env`: a random `SECRET_KEY` of at least 50 characters, strong database credentials, explicit `ALLOWED_HOSTS` (for example `gecpfoundation.org,.gecpfoundation.org`), matching HTTPS `CSRF_TRUSTED_ORIGINS`, and `ADMIN_BASE_URL=https://gecpfoundation.org`.
