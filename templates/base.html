@@ -19,6 +19,9 @@
   {% if og_image %}<meta property="og:image" content="{{ og_image }}"><meta name="twitter:card" content="summary_large_image">{% else %}<meta name="twitter:card" content="summary">{% endif %}
   {% structured_data og_image %}
   <link rel="alternate" type="text/calendar" title="Events" href="/events/calendar.ics">
+  <meta name="theme-color" content="{{ branding.primary_color|default:'#116A53' }}">
+  <link rel="preload" href="{% static 'fonts/inter-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{% static 'fonts/plus-jakarta-sans-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   <script src="{% static 'js/site.js' %}"></script>
   <script defer src="{% static 'js/htmx.min.js' %}"></script>

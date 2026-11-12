@@ -11,3 +11,4 @@ node_modules/
 static/css/app.css
 static/js/htmx.min.js
 static/js/alpine.min.js
+static/fonts/

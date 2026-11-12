@@ -64,6 +64,12 @@
     document.body.addEventListener('htmx:afterSwap', () => {
       const notice = document.getElementById('request-status'); if (notice) notice.hidden = true;
     });
+    const header = document.querySelector('.site-header');
+    if (header) {
+      const onScroll = () => header.classList.toggle('is-scrolled', window.scrollY > 24);
+      onScroll();
+      window.addEventListener('scroll', onScroll, { passive: true });
+    }
     document.addEventListener('submit', event => {
       const message = event.target.dataset && event.target.dataset.confirm;
       if (message && !window.confirm(message)) event.preventDefault();
